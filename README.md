@@ -17,5 +17,7 @@ This is a package for GO term similarity comparison . There are multiple methods
 - Use the formula from :
 
 $$
-aa =a
+W_{path(t_1,t_2)} = \sum_{i=0}^{n}{(w)^i}
 $$
+
+- w is a hyperparameter for weight .
