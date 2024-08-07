@@ -9,11 +9,18 @@ import ontobio as ob
 # parallel programming
 from dask.distributed import Client,LocalCluster,progress
 import dask
-
+#
+#
+#
 def save_to_json(gene_dict, file_path):
+    '''
+    Just save a file in json format
+    '''
     with open(file_path, 'w') as f:
         json.dump(gene_dict, f, indent=4)
-
+#
+#
+#
 def parseGAF(ga_path):
     '''
     Input : Path for .gaf file .
@@ -37,7 +44,7 @@ def parseGAF(ga_path):
                 for asc in g :
                     if not (asc.subject.id.namespace+':'+asc.subject.id.identity) in geneDict.keys():
                         geneDict[asc.subject.id.namespace+':'+asc.subject.id.identity] = []
-                    geneDict[asc.subject.id.namespace+':'+asc.subject.id.identity].append((asc.object.id.namespace+asc.object.id.identity , str(asc.evidence.gaf_evidence_code())))
+                    geneDict[asc.subject.id.namespace+':'+asc.subject.id.identity].append((asc.object.id.namespace+':'+asc.object.id.identity , str(asc.evidence.gaf_evidence_code())))
             except (AttributeError,TypeError) as e :
                 print(str(e))
             finally :
