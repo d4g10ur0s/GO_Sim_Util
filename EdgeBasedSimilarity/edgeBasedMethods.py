@@ -1,10 +1,35 @@
 import ontobio as ont
+import networkx as nx
 
-'''
-Method no.1 : Given two terms t1 ,t2 find their Lowest Common Ancestor .
-              Count the edges with weight 1 .
-'''
+def averageLengthToLCA(t1 , t2 , lca , ont):
+    G=ont.get_graph()
+    path1 = list(nx.all_simple_paths(G, lca, t1))
+    path2 = list(nx.all_simple_paths(G, lca, t2))
+    return sum([len(i) for i in path1 + path2])/len(path1+path2)
+
+def lowest_common_ancestor(t1, t2):
+    '''
+    1. Given two terms t1 , t2 find their LCA .
+    2. Find maximum distance of LCA from root .
+    '''
+    if not(t1[1] == t2[1]):
+        return [0,None]
+    dist_1 = 0
+    dist_2 = 0
+    for i in t1[0]:
+        for j in t2[0]:
+            intersection=list(set(t1[0][i])&set(t2[0][j]))
+            if len(intersection)>0:
+                return [i+j , intersection]
+        #endfor
+    #endfor
+#
+#
+#
 def minimumPath(t1 , t2):
+    '''
+    1.
+    '''
     if not(t1[1] == t2[1]):
         return 0
     dist_1 = 0
@@ -66,8 +91,3 @@ def simRada(genesID, genesData , ancestors):
         #endfor
     #endfor
     return simRada
-'''
-Method no.2 : Given two terms t1 , t2 find their LCA .
-              Find distance of LCA from root .
-
-'''

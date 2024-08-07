@@ -92,9 +92,9 @@ def allAncestorsAllTerms(terms , ont):
     counter=0
     for t in terms :
         try :
-            print(str(t))
+            #print(str(t))
             node = ont.node(t)
-            print(f'Node\'s namespace : {node['meta']['basicPropertyValues'][0]['val']}')
+            #print(f'Node\'s namespace : {node['meta']['basicPropertyValues'][0]['val']}')
             root = None
             tnamespace = None
             for i in node['meta']['basicPropertyValues']:
@@ -103,9 +103,9 @@ def allAncestorsAllTerms(terms , ont):
                     tnamespace=i['val']
             anc[t] = (allAncestors(t , root , ont) , tnamespace)
             counter+=1
-            if counter%100 == 0:
+            if counter%10 == 0:
                 print(f'Terms processed : {counter}')
-            print(str(anc[t]))
+            #print(str(anc[t]))
         except KeyError as e:
             print(str(e))
             print(str(ont.node(t)))
@@ -128,37 +128,44 @@ def main():
     print('Creating Ontology from file .')
     ont = ob.OntologyFactory().create(obo_path)
     anc = allAncestorsAllTerms(terms,ont)
-    terms = list(anc.keys())
-    for i in range(20):
-        print('-'*20)
-        # get two random genes
-        g1=geneData[random.choice(genes)]
-        tset1 = [t[0] for t in g1]
-        g2=geneData[random.choice(genes)]
-        tset2 = [t[0] for t in g2]
-        dists = []
-        for t1 in tset1:
-            for t2 in tset2:
-                dists.append(ebm.minimumPath(anc[t1],anc[t2]))
-                print(f'Minimum distance between {t1} and {t2} : {dists[-1]}')
-        print(f'Overall score : {sum(dists)}')
-        print('-'*20)
     '''
-    termList = geneData[random.choice(terms)]
-    term = termList[0]
-    # get root nodes
+    rada similarity
+    simRada = ebm.simRada(genes , geneData , anc)
+    print(str(simRada))
+    '''
+    # 1. get roots
     print('Getting Root Nodes !')
     rootNodes={}
+    namespace = []
     for r in ont.get_roots():
         rootNodes[str(ont.node(r)['label'])] = r
-    node = ont.node(term[0])
-    print(f'Subontology namespace : {str(node['meta']['basicPropertyValues'][0]['val'])}')
-    # get node's subontology root
-    root = rootNodes[node['meta']['basicPropertyValues'][0]['val']]
-    parents = allAncestors(term[0], root , ont)
-    print(str(parents))
-    '''
-
+        namespace.append(str(ont.node(r)['label']))
+    # ---
+    #
+    # ---
+    t = list(anc.keys())
+    for i in range(50):
+        t1 = random.choice(t)
+        t2 = random.choice(t)
+        lcaDist , lca = ebm.lowest_common_ancestor(anc[t1],anc[t2])
+        if not lca==None :
+            print('-'*20)
+            print(f'LCA : {lca[0]}')
+            # find lca's maximum path to root
+            node = ont.node(lca[0])
+            root = None
+            tnamespace = None
+            for i in node['meta']['basicPropertyValues']:
+                if i['val'] in namespace :
+                    root = rootNodes[i['val']]
+                    tnamespace=i['val']
+            dist = allAncestors(lca[0], root , ont)
+            print(f'All ancestors : {str(dist)}')
+            print(f'Distance from root : {sum([.815,] + [.815**(i+1) for i in range(1,len(dist.keys()))])}')
+            avgL = ebm.averageLengthToLCA(t1,t2,lca[0],ont)
+            print(f'Average path length : {avgL}')
+            normalizationFactor = (avgL + sum([.815,] + [.815**(i+1) for i in range(1,len(dist.keys()))]))/avgL
+            print('-'*20)
 
 if __name__ == "__main__":
     main()
