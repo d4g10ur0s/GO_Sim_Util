@@ -4,11 +4,20 @@ This is a package for GO term similarity comparison . There are multiple methods
 
 ## Edge Based Methods 
 
-#### 1. Simple Edge Counting Method
+#### 1. Simple Edge Counting Method 
 
-- Find the minimum lenght path for each pair of terms .
-- The number of edges is normalized by the maximum distance .
-- This metric can be used as similarity .
+simRada : https://ieeexplore.ieee.org/abstract/document/24528/ 
+          ./EdgeBasedSimilarity/edgeBasedMethods.py
+
+###### 1.1 Between Term Similarity
+
+- Find the minimum lenght path .
+- Each transition costs 1 .
+
+###### 1.2 Between Entities
+
+- For each combination of terms from each entity find the minimum path of terms .
+- Sum all the distances and divide by product of number of elements of each set . 
 
 #### 2. Weight Edges using the minimum distance from LCA to the root
 
