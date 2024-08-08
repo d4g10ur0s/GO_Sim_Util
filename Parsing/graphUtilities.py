@@ -144,38 +144,18 @@ def main():
     #
     # ---
     # 1. get a random node
-    for k in range(100):
+    for k in range(2):
         t1 = random.choice(terms)
         t2 = random.choice(terms)
         ebm.pairSemanticValue(t1, t2, ont)
     # between genes similarity
-    g1=random.choice(genes)
-    gene1=geneData[g1]
-    g2=random.choice(genes)
-    gene2=geneData[g2]
-    # 1. for each possible term pair get the maximum similarity
-    sim = 0
-    for term1 in gene1 :
-        tsim = 0
-        for term2 in gene2 :
-            psv=pairSemanticValue(t1, t2, ont)[1]
-            if tsim < psv:
-                tsim=psv
-            #endif
-        sim+=tsim
-        #endfor
+    for k in range(10):
+        g1=random.choice(genes)
+        gene1=geneData[g1]
+        g2=random.choice(genes)
+        gene2=geneData[g2]
+        ebm.geneSemanticValue(g1 , g2 , gene1 , gene2 , ont)
     #endfor
-    for term2 in gene2 :
-        tsim = 0
-        for term1 in gene1 :
-            psv=pairSemanticValue(t1, t2, ont)[1]
-            if tsim < psv:
-                tsim=psv
-            #endif
-        sim+=tsim
-        #endfor
-    #endfor
-    print(f'Similarity between genes {g1} , {g2} : {sim/(len(gene1) + len(gene2))}')
 
 if __name__ == "__main__":
     main()

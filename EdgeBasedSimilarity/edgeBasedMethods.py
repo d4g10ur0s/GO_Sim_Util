@@ -61,6 +61,35 @@ def pairSemanticValue(t1, t2 , ont):
 #
 #
 #
+def geneSemanticValue(g1 , g2 , gene1 , gene2 , ont):
+    # 1. for each possible term pair get the maximum similarity
+    sim = 0
+    for term1 in gene1 :
+        tsim = 0
+        for term2 in gene2 :
+            psv=ebm.pairSemanticValue(t1, t2, ont)
+            if tsim < psv:
+                tsim=psv
+            #endif
+        #endfor
+        sim+=tsim
+    #endfor
+    for term2 in gene2 :
+        tsim = 0
+        for term1 in gene1 :
+            psv=ebm.pairSemanticValue(t1, t2, ont)
+            if tsim < psv:
+                tsim=psv
+            #endif
+        #endfor
+        sim+=tsim
+    #endfor
+    # use the formula to calculate gene similarity
+    print(f'Similarity between genes {g1} , {g2} : {sim/(len(gene1) + len(gene2))}')
+    return sim/(len(gene1) + len(gene2))
+#
+#
+#
 def averageLengthToLCA(t1 , t2 , lca , ont):
     G=ont.get_graph()
     path1 = list(nx.all_simple_paths(G, lca, t1))
