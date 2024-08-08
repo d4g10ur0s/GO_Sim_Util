@@ -1,12 +1,16 @@
 import ontobio as ont
 import networkx as nx
 
+from Parsing import graphUtilities as gu
+
 def averageLengthToLCA(t1 , t2 , lca , ont):
     G=ont.get_graph()
     path1 = list(nx.all_simple_paths(G, lca, t1))
     path2 = list(nx.all_simple_paths(G, lca, t2))
     return sum([len(i) for i in path1 + path2])/len(path1+path2)
-
+#
+#
+#
 def lowest_common_ancestor(t1, t2):
     '''
     1. Given two terms t1 , t2 find their LCA .
@@ -23,6 +27,24 @@ def lowest_common_ancestor(t1, t2):
                 return [i+j , intersection]
         #endfor
     #endfor
+#
+#
+#
+def simpleWeightedDistance(t1 , t2 , root , anc1 , anc2 , ont):
+    # 1. find lowest common ancestor
+    lcaDist , lca = lowest_common_ancestor(anc1,anc2)
+    # 2. if they are in the same namespace
+    if not lca==None :
+        print('-'*20)
+        print(f'LCA : {lca[0]}')
+        # 3. find lca's maximum path to root
+        dist = gu.allAncestors(lca[0], root , ont)
+        print(f'All ancestors : {str(dist)}')
+        print(f'Distance from root : {sum([.815,] + [.815**(i+1) for i in range(1,len(dist.keys()))])}')
+        avgL = averageLengthToLCA(t1,t2,lca[0],ont)
+        print(f'Average path length : {avgL}')
+        normalizationFactor = (avgL + sum([.815,] + [.815**(i+1) for i in range(1,len(dist.keys()))]))/avgL
+        print('-'*20)
 #
 #
 #

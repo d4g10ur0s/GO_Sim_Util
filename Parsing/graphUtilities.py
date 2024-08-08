@@ -143,29 +143,45 @@ def main():
     # ---
     #
     # ---
-    t = list(anc.keys())
-    for i in range(50):
-        t1 = random.choice(t)
-        t2 = random.choice(t)
-        lcaDist , lca = ebm.lowest_common_ancestor(anc[t1],anc[t2])
-        if not lca==None :
-            print('-'*20)
-            print(f'LCA : {lca[0]}')
-            # find lca's maximum path to root
-            node = ont.node(lca[0])
-            root = None
-            tnamespace = None
-            for i in node['meta']['basicPropertyValues']:
-                if i['val'] in namespace :
-                    root = rootNodes[i['val']]
-                    tnamespace=i['val']
-            dist = allAncestors(lca[0], root , ont)
-            print(f'All ancestors : {str(dist)}')
-            print(f'Distance from root : {sum([.815,] + [.815**(i+1) for i in range(1,len(dist.keys()))])}')
-            avgL = ebm.averageLengthToLCA(t1,t2,lca[0],ont)
-            print(f'Average path length : {avgL}')
-            normalizationFactor = (avgL + sum([.815,] + [.815**(i+1) for i in range(1,len(dist.keys()))]))/avgL
-            print('-'*20)
+    # 1. get a random node
+    t1 = random.choice(terms)
+    # 2. construct its graph
+    node = ont.node(t1)
+    root = None
+    for i in node['meta']['basicPropertyValues']:
+        if i['val'] in namespace :
+            root = rootNodes[i['val']]
+    graph1 = allAncestors(t1,root,ont)
+    # 3. calculate all semantic values for the graph
+    sval = {}
+    weightFactor = .815
+    # starting node's semantic value is 1
+    sval[t1] = 1
+    for i in graph1 :
+        lterms = graph1[i]
+        # semantic value depends on children
+        for p in lterms :
+            # if first layer , then term's child is the term under process
+            if i==1 :
+                sval[p] = 1 * weightFactor
+            elif len(lterms)>0 :
+                # 3.1 get node's children in ontology graph
+                parent = ont.node(p)
+                children = ont.children(parent)
+                # 3.2 get the intersection with all the previous layers
+                player = graph[i-1]
+                childIntersection = set(sval.keys())&set(children)
+                sval[p]=0
+                for c in childIntersection:
+                    # 3.3 find the maximum svalue
+                    if sval[p]<sval[c] * weightFactor:
+                        sval[p] = sval[c] * weightFactor
+                    #endif
+                #endfor
+            #endif
+        #endfor
+    #endfor
+    print(str(sval))
 
 if __name__ == "__main__":
     main()
