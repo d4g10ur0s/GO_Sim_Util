@@ -144,7 +144,16 @@ def main():
     #
     # ---
     # 1. get a random node
-    t1 = random.choice(terms)
+    for k in range(100):
+        t1 = random.choice(terms)
+        t2 = random.choice(terms)
+        sval1 , semanticValue1 = ebm.getSvalue(t1 , ont , rootNodes , namespace)
+        sval2 , semanticValue2 = ebm.getSvalue(t2 , ont , rootNodes , namespace)
+        # Calculate semantic similarity of t1 , t2
+        inTerms = set(sval1.keys()) & set(sval2.keys())
+        svalPair = sum([sval1[i]+sval2[i] for i in inTerms])
+        print(f'Similarity of {t1} , {t2} : {svalPair/(semanticValue1+semanticValue2)}')
+    '''
     # 2. construct its graph
     node = ont.node(t1)
     root = None
@@ -166,11 +175,12 @@ def main():
                 sval[p] = 1 * weightFactor
             elif len(lterms)>0 :
                 # 3.1 get node's children in ontology graph
-                parent = ont.node(p)
-                children = ont.children(parent)
+                children = ont.children(p)
                 # 3.2 get the intersection with all the previous layers
-                player = graph[i-1]
+                player = graph1[i-1]
                 childIntersection = set(sval.keys())&set(children)
+                print(f'Last layer terms : {str(lterms)} , {str(i-1)}')
+                print(f'Children of {p} Intersection : {str(childIntersection)}')
                 sval[p]=0
                 for c in childIntersection:
                     # 3.3 find the maximum svalue
@@ -182,6 +192,8 @@ def main():
         #endfor
     #endfor
     print(str(sval))
+    print(f'Term {t1} Semantic Value : {str(sum([sval[i] for i in sval.keys()]))}')
+    '''
 
 if __name__ == "__main__":
     main()

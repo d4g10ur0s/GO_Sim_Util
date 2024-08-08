@@ -3,6 +3,50 @@ import networkx as nx
 
 from Parsing import graphUtilities as gu
 
+def getSvalue(t,ont,rootNodes,namespace):
+    # 2. construct its graph
+    node = ont.node(t)
+    root = None
+    for i in node['meta']['basicPropertyValues']:
+        if i['val'] in namespace :
+            root = rootNodes[i['val']]
+    graph = gu.allAncestors(t,root,ont)
+    # 3. calculate all semantic values for the graph
+    sval = {}
+    weightFactor = .815
+    # starting node's semantic value is 1
+    sval[t] = 1
+    for i in graph :
+        lterms = graph[i]
+        # semantic value depends on children
+        for p in lterms :
+            # if first layer , then term's child is the term under process
+            if i==1 :
+                sval[p] = 1 * weightFactor
+            elif len(lterms)>0 :
+                # 3.1 get node's children in ontology graph
+                children = ont.children(p)
+                # 3.2 get the intersection with all the previous layers
+                player = graph[i-1]
+                childIntersection = set(sval.keys())&set(children)
+                print(f'Last layer terms : {str(lterms)} , {str(i-1)}')
+                print(f'Children of {p} Intersection : {str(childIntersection)}')
+                sval[p]=0
+                for c in childIntersection:
+                    # 3.3 find the maximum svalue
+                    if sval[p]<sval[c] * weightFactor:
+                        sval[p] = sval[c] * weightFactor
+                    #endif
+                #endfor
+            #endif
+        #endfor
+    #endfor
+    print(str(sval))
+    print(f'Term {t} Semantic Value : {str(sum([sval[i] for i in sval.keys()]))}')
+    return sval , sum([sval[i] for i in sval.keys()])
+#
+#
+#
 def averageLengthToLCA(t1 , t2 , lca , ont):
     G=ont.get_graph()
     path1 = list(nx.all_simple_paths(G, lca, t1))
