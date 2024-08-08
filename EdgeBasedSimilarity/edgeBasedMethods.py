@@ -29,8 +29,6 @@ def getSvalue(t,ont,rootNodes,namespace):
                 # 3.2 get the intersection with all the previous layers
                 player = graph[i-1]
                 childIntersection = set(sval.keys())&set(children)
-                print(f'Last layer terms : {str(lterms)} , {str(i-1)}')
-                print(f'Children of {p} Intersection : {str(childIntersection)}')
                 sval[p]=0
                 for c in childIntersection:
                     # 3.3 find the maximum svalue
@@ -41,9 +39,25 @@ def getSvalue(t,ont,rootNodes,namespace):
             #endif
         #endfor
     #endfor
-    print(str(sval))
-    print(f'Term {t} Semantic Value : {str(sum([sval[i] for i in sval.keys()]))}')
+    #print(f'Term {t} Semantic Value : {str(sum([sval[i] for i in sval.keys()]))}')
     return sval , sum([sval[i] for i in sval.keys()])
+#
+#
+#
+def pairSemanticValue(t1, t2 , ont):
+    rootNodes={}
+    namespace = []
+    for r in ont.get_roots():
+        rootNodes[str(ont.node(r)['label'])] = r
+        namespace.append(str(ont.node(r)['label']))
+    sval1 , semanticValue1 = getSvalue(t1 , ont , rootNodes , namespace)
+    sval2 , semanticValue2 = getSvalue(t2 , ont , rootNodes , namespace)
+    # Calculate semantic similarity of t1 , t2
+    inTerms = set(sval1.keys()) & set(sval2.keys())
+    svalPair = sum([sval1[i]+sval2[i] for i in inTerms])
+    pairSimilarity = svalPair/(semanticValue1+semanticValue2)
+    print(f'Similarity of {t1} , {t2} : {pairSimilarity}')
+    return pairSimilarity
 #
 #
 #

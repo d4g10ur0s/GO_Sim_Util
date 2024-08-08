@@ -147,53 +147,35 @@ def main():
     for k in range(100):
         t1 = random.choice(terms)
         t2 = random.choice(terms)
-        sval1 , semanticValue1 = ebm.getSvalue(t1 , ont , rootNodes , namespace)
-        sval2 , semanticValue2 = ebm.getSvalue(t2 , ont , rootNodes , namespace)
-        # Calculate semantic similarity of t1 , t2
-        inTerms = set(sval1.keys()) & set(sval2.keys())
-        svalPair = sum([sval1[i]+sval2[i] for i in inTerms])
-        print(f'Similarity of {t1} , {t2} : {svalPair/(semanticValue1+semanticValue2)}')
-    '''
-    # 2. construct its graph
-    node = ont.node(t1)
-    root = None
-    for i in node['meta']['basicPropertyValues']:
-        if i['val'] in namespace :
-            root = rootNodes[i['val']]
-    graph1 = allAncestors(t1,root,ont)
-    # 3. calculate all semantic values for the graph
-    sval = {}
-    weightFactor = .815
-    # starting node's semantic value is 1
-    sval[t1] = 1
-    for i in graph1 :
-        lterms = graph1[i]
-        # semantic value depends on children
-        for p in lterms :
-            # if first layer , then term's child is the term under process
-            if i==1 :
-                sval[p] = 1 * weightFactor
-            elif len(lterms)>0 :
-                # 3.1 get node's children in ontology graph
-                children = ont.children(p)
-                # 3.2 get the intersection with all the previous layers
-                player = graph1[i-1]
-                childIntersection = set(sval.keys())&set(children)
-                print(f'Last layer terms : {str(lterms)} , {str(i-1)}')
-                print(f'Children of {p} Intersection : {str(childIntersection)}')
-                sval[p]=0
-                for c in childIntersection:
-                    # 3.3 find the maximum svalue
-                    if sval[p]<sval[c] * weightFactor:
-                        sval[p] = sval[c] * weightFactor
-                    #endif
-                #endfor
+        ebm.pairSemanticValue(t1, t2, ont)
+    # between genes similarity
+    g1=random.choice(genes)
+    gene1=geneData[g1]
+    g2=random.choice(genes)
+    gene2=geneData[g2]
+    # 1. for each possible term pair get the maximum similarity
+    sim = 0
+    for term1 in gene1 :
+        tsim = 0
+        for term2 in gene2 :
+            psv=pairSemanticValue(t1, t2, ont)[1]
+            if tsim < psv:
+                tsim=psv
             #endif
+        sim+=tsim
         #endfor
     #endfor
-    print(str(sval))
-    print(f'Term {t1} Semantic Value : {str(sum([sval[i] for i in sval.keys()]))}')
-    '''
+    for term2 in gene2 :
+        tsim = 0
+        for term1 in gene1 :
+            psv=pairSemanticValue(t1, t2, ont)[1]
+            if tsim < psv:
+                tsim=psv
+            #endif
+        sim+=tsim
+        #endfor
+    #endfor
+    print(f'Similarity between genes {g1} , {g2} : {sim/(len(gene1) + len(gene2))}')
 
 if __name__ == "__main__":
     main()
