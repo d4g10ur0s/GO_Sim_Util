@@ -11,9 +11,13 @@ def parentFrequency(terms, ont):
     pf = {}
     # 1. for each term get its parents' frequency
     tKeys = terms.columns.tolist()
+    counter = 0
     for t in tKeys :
+        print(f'Number of terms processed : {counter}')
+        counter+=1
         parents = ont.parents(t)
         while len(parents) > 0:
+            tparents = []
             # 2. for each parent add one to parent frequency
             for p in parents:
                 if p in pf.keys():
@@ -21,12 +25,11 @@ def parentFrequency(terms, ont):
                 else:
                     pf[p]=1
                 #endif
+                # 3. get parents of parents
+                tparents += ont.parents(p)# u need to have multiple times one parent , so not use of set
             #endfor
-            # 3. get parents of parents
-            parents = ont.parents(t)
+            parents = tparents
         #endwhile
     #endfor
-    print(pf)
     tf = pd.DataFrame.from_dict(pf,orient='index')
-    print(str(tf))
     return tf

@@ -180,10 +180,9 @@ def main():
         #endfor
     #endfor
     tf = pd.DataFrame.from_dict(termFrequency,orient='index')
-    print(tf)
     df = pd.concat([tf.transpose(), icu.parentFrequency(tf.transpose() , ont).transpose()], axis=1)
-    print(f'Max frequency : {df.max()}')
-    print(f'{df}')
+    df = pd.concat([df, df/df.max()], ignore_index=True)
+    print(f'{df.transpose()}')
 
 if __name__ == "__main__":
     main()
