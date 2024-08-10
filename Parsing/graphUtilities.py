@@ -16,6 +16,39 @@ from EdgeBasedSimilarity import edgeBasedMethods as ebm
 #
 #
 #
+def findRoot(t,ont ,namespaces,rootNodes):
+    node = ont.node(t)
+    root = None
+    namespace = None
+    for i in node['meta']['basicPropertyValues']:
+        if i['val'] in namespaces :
+            namespace=i['val']
+            root = rootNodes[i['val']]
+        #endif
+    #endfor
+    return [root,namespace]
+#
+#
+#
+def findAllChildrenInGraph(t , ont):
+    dists = {}
+    n=0#number of children in ontology graph
+    dist=1
+    children = ont.children(t)
+    while len(children) > 0 :
+        dists[dist]=children
+        n+=len(children)
+        tempChildren = []
+        for c in dists[dist]:# for each last child
+            tempChildren+=ont.children(c)# get its children and add them to temp
+        #endfor
+        dist+=1
+        children=tempChildren
+    #endwhile
+    return dists
+#
+#
+#
 def extractTermsFromGenes(genes):
     terms = []
     for g in genes:
@@ -143,19 +176,19 @@ def main():
     # ---
     #
     # ---
-    # 1. get a random node
-    for k in range(2):
+    # 1. get two random nodes
+    for i in range(100):
         t1 = random.choice(terms)
         t2 = random.choice(terms)
-        ebm.pairSemanticValue(t1, t2, ont)
-    # between genes similarity
-    for k in range(10):
-        g1=random.choice(genes)
-        gene1=geneData[g1]
-        g2=random.choice(genes)
-        gene2=geneData[g2]
-        ebm.geneSemanticValue(g1 , g2 , gene1 , gene2 , ont)
-    #endfor
+        root1 ,namespace1 = findRoot(t1, ont , namespace, rootNodes)
+        root2 ,namespace2 = findRoot(t2, ont , namespace, rootNodes)
+        # 2. find minimum path
+        anc1 = allAncestors(t1,root1,ont)
+        anc2 = allAncestors(t2,root2,ont)
+        mpath = ebm.findMinimumPath(t1 , t2 ,(anc1, root1)  , (anc2, root2), ont)
+        print(f'Minimum Path for {t1} , {t2} : ')
+        print(str(mpath))
+    #d = findAllChildrenInGraph(tnew,ont)
 
 if __name__ == "__main__":
     main()

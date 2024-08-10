@@ -135,7 +135,40 @@ def simpleWeightedDistance(t1 , t2 , root , anc1 , anc2 , ont):
 #
 #
 #
-def minimumPath(t1 , t2):
+def findMinimumPath(t1, t2, anc1 , anc2 ,ont):
+    # 1. get lca
+    dist , lca = lowest_common_ancestor(anc1 , anc2)
+    if lca == None:
+        return None
+    print(str(lca))
+    # 2. get all paths from lca to t1/t2
+    G = ont.get_graph()
+    paths1 = list(nx.all_simple_paths(G, lca[0], t1))
+    paths2 = list(nx.all_simple_paths(G, lca[0], t2))
+    # 3. get the minimum path
+    lp1 = 10e10#just a random very big number
+    p1 = None
+    for i in paths1:
+        if len(i)<lp1:
+            lp1 = len(i)
+            p1 = i
+        #endif
+    #endfor
+    lp2 = 10e10#just a random very big number
+    p2 = None
+    for i in paths2:
+        if len(i)<lp2:
+            lp2 = len(i)
+            p2 = i
+        #endif
+    #endfor
+    # return the path : t1 -> root -> t2
+    p2.pop(0)# pop lca for 2nd path
+    return p1.reverse() + p2# reverse the path from lca to t1 , to get the path t1 -> lca
+#
+#
+#
+def minimumPathLength(t1 , t2):
     '''
     1.
     '''
@@ -188,7 +221,7 @@ def simRada(genesID, genesData , ancestors):
                 for t2 in tset2:
                     normSet = [ancestors[t1][0][i] for i in ancestors[t1][0].keys()] + [ancestors[t2][0][i] for i in ancestors[t2][0].keys()]
                     print(str(normSet))
-                    mPath=minimumPath(ancestors[t1],ancestors[t2])
+                    mPath=minimumPathLength(ancestors[t1],ancestors[t2])
                     dists.append(mPath)
                 #endfor
             #endfor
