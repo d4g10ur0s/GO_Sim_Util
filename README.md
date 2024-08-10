@@ -4,6 +4,25 @@ This is a package for GO term similarity comparison . There are multiple methods
 
 # B. Set Up
 
+## 1. Java - 11
+
+- Install : `sudo apt-get install openjdk-11-jdk`
+- Add to path : `export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64`
+
+## 2. OWL Tools : 
+
+- Source : [owltools](https://github.com/owlcollab/owltools)
+
+1. Get from GitHub : `git clone https://github.com/owlcollab/owltools.git`
+2. Move to `OWLTools-Parent` directory .
+3. Install using maven : Run `mvn clean install` .
+4. Add owltools to path : `export PATH=$PATH:directory/to/where/you/downloaded/owltools/OWLTools-Runner/target`
+
+## 3. Python3 Modules
+
+- ontobio : `pip install ontobio`
+- networkx : `pip install networkx[default,extra]`
+
 # C. Methods
 
 ## Edge Based Methods 
