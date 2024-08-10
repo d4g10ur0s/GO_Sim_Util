@@ -30,7 +30,7 @@ def getTValues(t , root , ont):
             #endif
         #endfor
     #endfor
-    print(str(tValues))
+    #print(str(tValues))
     return tValues
 #
 #
