@@ -30,7 +30,14 @@ def getTValues(t , root , ont):
             #endif
         #endfor
     #endfor
-    #print(str(tValues))
+    # Do the same for t
+    # Add children for t
+    children , n = gu.findAllChildrenInGraph(t,ont)
+    nChildren[t]=n
+    # Calculate t's T-value
+    pp = ont.parents(t)# get parents of t
+    omega = [tValues[o]*(nChildren[t]/nChildren[o]) for o in pp]# calculate omega using kids
+    tValues[t]=sum(omega)/len(omega)
     return tValues
 #
 #
@@ -172,7 +179,6 @@ def findMinimumPath(t1, t2, anc1 , anc2 ,ont):
     dist , lca = lowest_common_ancestor(anc1 , anc2)
     if lca == None:
         return None
-    print(str(lca))
     # 2. get all paths from lca to t1/t2
     G = ont.get_graph()
     paths1 = list(nx.all_simple_paths(G, lca[0], t1))

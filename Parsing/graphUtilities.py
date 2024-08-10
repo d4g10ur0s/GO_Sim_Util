@@ -187,16 +187,21 @@ def main():
         tval2 = ebm.getTValues(t2, root2 , ont)
         anc1 = allAncestors(t1 , root1 , ont)
         anc2 = allAncestors(t2 , root2 , ont)
-        mpath = findMinimumPath(t1, t2, anc1 , anc2 ,ont)
+        mpath = ebm.findMinimumPath(t1, t2, (anc1 , root1) , (anc2 , root2) ,ont)
         sim = 0
-        for node in mpath :
-            if node in tval1.keys():
-                sim+=tval1[node]
-            else:
-                sim+=tval2[node]
-        #endfor
-        print(f'Semantic Distance of {t1} , {t2} : {np.arctan(sim)/(np.pi/2)}')
-        print(f'Semantic Similarity of {t1} , {t2} : {1 - np.arctan(sim)/(np.pi/2)}')
+        print(f'Shortest path : {mpath}')
+        if not mpath==None :
+            for node in mpath :
+                if node in tval1.keys():
+                    sim+=tval1[node]
+                else:
+                    sim+=tval2[node]
+            #endfor
+            print(f'Semantic Distance of {t1} , {t2} : {np.arctan(sim)/(np.pi/2)}')
+            print(f'Semantic Similarity of {t1} , {t2} : {1 - np.arctan(sim)/(np.pi/2)}')
+        else :
+            print(f'Semantic Distance of {t1} , {t2} : {1}')
+            print(f'Semantic Similarity of {t1} , {t2} : {0}')
     #d = findAllChildrenInGraph(tnew,ont)
 
 if __name__ == "__main__":
