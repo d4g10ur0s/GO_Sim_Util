@@ -85,3 +85,10 @@ $$
 $$
 S_{GO}(t_1, t_2) = \frac{\sum_{t_i \in N_{t_1}\cap N_{t_2}}{(S_{t_1}(t_i) + S_{t_2}(t_i)}}{SV(t_1) + SV(t_2)}
 $$
+
+### 4. Shortest Semantic Differentiation Distance - SSDD
+
+- Source : [A novel insight into Gene Ontology semantic similarity](https://www.sciencedirect.com/science/article/pii/S0888754313000876)
+- Implementation : ./EdgeBasedSimilarity/edgeBasedMethods.py
+
+#### 4.1 Between Term Similarity
