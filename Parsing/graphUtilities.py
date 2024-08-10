@@ -163,32 +163,47 @@ def main():
     print('Creating Ontology from file .')
     ont = ob.OntologyFactory().create(obo_path)
     anc = allAncestorsAllTerms(terms,ont)
-    icu.frequencyANDprobability(geneData , ont)
-    '''
-    for i in range(100):
-        t1 = random.choice(terms)
-        t2 = random.choice(terms)
-        print(f'Semantic Similarity of {t1} , {t2} : {ebm.shortestSemanticDifferentiationDistance(t1,t2,ont)}')
-    '''
-    '''
-    termFrequency = {}
-    for g in geneData :
-        for t in geneData[g] :
-            if t[0] in termFrequency.keys():
-                termFrequency[t[0]]+=1
-            else:
-                termFrequency[t[0]]=1
-            #endif
-        #endfor
-    #endfor
-    tf = pd.DataFrame.from_dict(termFrequency,orient='index')
-    df = pd.concat([tf.transpose(), icu.parentFrequency(tf.transpose() , ont).transpose()], axis=1)
-    df = df.transpose()
-    df = pd.concat([df, df/df[0].max()], axis=1)
-    new_columns = ['frequency', 'probability']
+    df = icu.frequencyANDprobability(geneData , ont)
+    df = pd.concat([df, -np.log(df['probability'])], axis=1)
+    new_columns = ['frequency', 'probability', 'IC']
     df.columns = new_columns
     print(f'{df}')
-    '''
+    # resnik
+    for i in range(100):
+        # 0. get roots
+        rootNodes={}
+        namespace = []
+        for r in ont.get_roots():
+            rootNodes[str(ont.node(r)['label'])] = r
+            namespace.append(str(ont.node(r)['label']))
+        t1 = random.choice(terms)
+        t2 = random.choice(terms)
+        root1 ,namespace1 = findRoot(t1, ont , namespace, rootNodes)
+        root2 ,namespace2 = findRoot(t2, ont , namespace, rootNodes)
+        anc1 = allAncestors(t1 , root1 , ont)
+        anc2 = allAncestors(t2 , root2 , ont)
+        # find the common ancestor with the minimum IC
+        ancset1 = []
+        for i in anc1.keys():
+            ancset1 += anc1[i]
+        ancset2 = []
+        for i in anc2.keys():
+            ancset2 += anc2[i]
+        ancIntersection = set(ancset1)&set(ancset2)
+        if len(ancIntersection)<1:
+            print(f'Term {t1} , {t2} similarity is : {0}')
+        else:
+            pic = 10e10
+            anc = None
+            for p in ancIntersection:
+                if df[p]['IC'] < pic:
+                    pic=df[p]['IC']
+                    anc = p
+                #endif
+            #endfor
+            print(f'Term {t1} , {t2} similarity given by common ancestor {anc} is : {pic}')
+        #endif
+    #endfor
 
 if __name__ == "__main__":
     main()

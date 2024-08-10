@@ -53,7 +53,7 @@ def frequencyANDprobability(geneData , ont):
     df = pd.concat([df, df/df[0].max()], axis=1)
     new_columns = ['frequency', 'probability']
     df.columns = new_columns
-    print(f'{df}')
+    return df
 #
 #
 #
