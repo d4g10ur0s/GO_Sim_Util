@@ -33,3 +33,27 @@ def parentFrequency(terms, ont):
     #endfor
     tf = pd.DataFrame.from_dict(pf,orient='index')
     return tf
+#
+#
+#
+def frequencyANDprobability(geneData , ont):
+    termFrequency = {}
+    for g in geneData :
+        for t in geneData[g] :
+            if t[0] in termFrequency.keys():
+                termFrequency[t[0]]+=1
+            else:
+                termFrequency[t[0]]=1
+            #endif
+        #endfor
+    #endfor
+    tf = pd.DataFrame.from_dict(termFrequency,orient='index')
+    df = pd.concat([tf.transpose(), parentFrequency(tf.transpose() , ont).transpose()], axis=1)
+    df = df.transpose()
+    df = pd.concat([df, df/df[0].max()], axis=1)
+    new_columns = ['frequency', 'probability']
+    df.columns = new_columns
+    print(f'{df}')
+#
+#
+#

@@ -163,11 +163,13 @@ def main():
     print('Creating Ontology from file .')
     ont = ob.OntologyFactory().create(obo_path)
     anc = allAncestorsAllTerms(terms,ont)
+    icu.frequencyANDprobability(geneData , ont)
     '''
     for i in range(100):
         t1 = random.choice(terms)
         t2 = random.choice(terms)
         print(f'Semantic Similarity of {t1} , {t2} : {ebm.shortestSemanticDifferentiationDistance(t1,t2,ont)}')
+    '''
     '''
     termFrequency = {}
     for g in geneData :
@@ -181,8 +183,12 @@ def main():
     #endfor
     tf = pd.DataFrame.from_dict(termFrequency,orient='index')
     df = pd.concat([tf.transpose(), icu.parentFrequency(tf.transpose() , ont).transpose()], axis=1)
-    df = pd.concat([df, df/df.max()], ignore_index=True)
-    print(f'{df.transpose()}')
+    df = df.transpose()
+    df = pd.concat([df, df/df[0].max()], axis=1)
+    new_columns = ['frequency', 'probability']
+    df.columns = new_columns
+    print(f'{df}')
+    '''
 
 if __name__ == "__main__":
     main()
