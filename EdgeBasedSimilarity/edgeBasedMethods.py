@@ -163,8 +163,10 @@ def findMinimumPath(t1, t2, anc1 , anc2 ,ont):
         #endif
     #endfor
     # return the path : t1 -> root -> t2
+    print(str(p1))
+    print(str(p2))
     p2.pop(0)# pop lca for 2nd path
-    return p1.reverse() + p2# reverse the path from lca to t1 , to get the path t1 -> lca
+    return p1[::-1] + p2# reverse the path from lca to t1 , to get the path t1 -> lca
 #
 #
 #
