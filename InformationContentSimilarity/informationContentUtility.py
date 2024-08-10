@@ -57,3 +57,36 @@ def frequencyANDprobability(geneData , ont):
 #
 #
 #
+def simResnik(t1, t2 , ont , df):
+    # 0. get roots
+    rootNodes={}
+    namespace = []
+    for r in ont.get_roots():
+        rootNodes[str(ont.node(r)['label'])] = r
+        namespace.append(str(ont.node(r)['label']))
+    root1 ,namespace1 = gu.findRoot(t1, ont , namespace, rootNodes)
+    root2 ,namespace2 = gu.findRoot(t2, ont , namespace, rootNodes)
+    anc1 = gu.allAncestors(t1 , root1 , ont)
+    anc2 = gu.allAncestors(t2 , root2 , ont)
+    # find the common ancestor with the minimum IC
+    ancset1 = []
+    for i in anc1.keys():
+        ancset1 += anc1[i]
+    ancset2 = []
+    for i in anc2.keys():
+        ancset2 += anc2[i]
+    ancIntersection = set(ancset1)&set(ancset2)
+    if len(ancIntersection)<1:
+        print(f'Term {t1} , {t2} similarity is : {0}')
+        return [None, 0]
+    else:
+        pic = 10e10
+        anc = None
+        for p in ancIntersection:
+            if df['IC'][p] < pic:
+                pic=df['IC'][p]
+                anc = p
+            #endif
+        #endfor
+        return [anc, pic]
+    #endif

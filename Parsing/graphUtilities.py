@@ -170,40 +170,14 @@ def main():
     print(f'{df}')
     # resnik
     for i in range(100):
-        # 0. get roots
-        rootNodes={}
-        namespace = []
-        for r in ont.get_roots():
-            rootNodes[str(ont.node(r)['label'])] = r
-            namespace.append(str(ont.node(r)['label']))
         t1 = random.choice(terms)
         t2 = random.choice(terms)
-        root1 ,namespace1 = findRoot(t1, ont , namespace, rootNodes)
-        root2 ,namespace2 = findRoot(t2, ont , namespace, rootNodes)
-        anc1 = allAncestors(t1 , root1 , ont)
-        anc2 = allAncestors(t2 , root2 , ont)
-        # find the common ancestor with the minimum IC
-        ancset1 = []
-        for i in anc1.keys():
-            ancset1 += anc1[i]
-        ancset2 = []
-        for i in anc2.keys():
-            ancset2 += anc2[i]
-        ancIntersection = set(ancset1)&set(ancset2)
-        if len(ancIntersection)<1:
-            print(f'Term {t1} , {t2} similarity is : {0}')
-        else:
-            pic = 10e10
-            anc = None
-            for p in ancIntersection:
-                if df[p]['IC'] < pic:
-                    pic=df[p]['IC']
-                    anc = p
-                #endif
-            #endfor
-            print(f'Term {t1} , {t2} similarity given by common ancestor {anc} is : {pic}')
-        #endif
-    #endfor
+        anc , simRes = icu.simResnik(t1 , t2 , ont ,df)
+        print(f'Term {t1} , {t2} Resnik similarity given by common ancestor {anc} is : {simRes}')
+        simJiang = (2 * simRes) / (df['IC'][t1]+df['IC'][t2])
+        print(f'Term {t1} , {t2} Jiang similarity given by common ancestor {anc} is : {simJiang}')
+        simLin = (2 * simRes) - (df['IC'][t1]+df['IC'][t2])
+        print(f'Term {t1} , {t2} Jiang similarity given by common ancestor {anc} is : {simLin}')
 
 if __name__ == "__main__":
     main()
