@@ -182,6 +182,9 @@ def main():
         t2 = random.choice(terms)
         root1 ,namespace1 = findRoot(t1, ont , namespace, rootNodes)
         root2 ,namespace2 = findRoot(t2, ont , namespace, rootNodes)
+        ebm.getTValues(t1, root1 , ont)
+        ebm.getTValues(t2, root2 , ont)
+        '''
         # 1. get sub graph with all parents
         anc1 = allAncestors(t1,root1,ont)
         anc2 = allAncestors(t2,root2,ont)
@@ -192,16 +195,19 @@ def main():
             for p in anc1[i]:
                 children , n = findAllChildrenInGraph(p,ont)
                 nChildren[p]=n
+            #endfor
+        #endfor
         for i in anc2 :
             for p in anc2[i]:
                 if p in nChildren.keys():
                     continue
                 childre , n = findAllChildrenInGraph(p,ont)
                 nChildren[p]=n
-        print(str(nChildren))
+            #endfor
+        #endfor
         # 2.2 calculate T-values
         tValues = {}
-        for i in anc1.keys()[::-1]:# start from root
+        for i in list(anc1.keys())[::-1]:# start from root
             for p in anc1[i]:
                 if p == root1:
                     tValues[root1]=1
@@ -214,10 +220,24 @@ def main():
                 #endif
             #endfor
         #endfor
+        for i in list(anc2.keys())[::-1]:# start from root
+            for p in anc2[i]:
+                if p == root2:
+                    tValues[root2]=1
+                else :# if not root
+                    pp = ont.parents(p)# get parents of parent
+                    omega = [tValues[o]*(nChildren[p]/nChildren[o]) for o in pp]# calculate omega using kids
+                    # t-value is the average of parents' t-values multiplied by omega
+                    tValues[p]=sum(omega)/len(omega)
+                    #endfor
+                #endif
+            #endfor
+        #endfor
         print(str(tValues))
-        mpath = ebm.findMinimumPath(t1 , t2 ,(anc1, root1)  , (anc2, root2), ont)
-        print(f'Minimum Path for {t1} , {t2} : ')
-        print(str(mpath))
+        #mpath = ebm.findMinimumPath(t1 , t2 ,(anc1, root1)  , (anc2, root2), ont)
+        #print(f'Minimum Path for {t1} , {t2} : ')
+        #print(str(mpath))
+        '''
     #d = findAllChildrenInGraph(tnew,ont)
 
 if __name__ == "__main__":

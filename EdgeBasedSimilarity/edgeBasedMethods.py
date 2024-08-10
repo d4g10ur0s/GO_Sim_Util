@@ -3,6 +3,38 @@ import networkx as nx
 
 from Parsing import graphUtilities as gu
 
+def getTValues(t , root , ont):
+    # 1. get sub graph with all parents
+    anc = gu.allAncestors(t,root,ont)
+    # 2. for each parent calculate T-value
+    # 2.1 for each parent get all children till leaf nodes
+    nChildren = {}
+    for i in anc :
+        for p in anc[i]:
+            children , n = gu.findAllChildrenInGraph(p,ont)
+            nChildren[p]=n
+        #endfor
+    #endfor
+    # 2.2 calculate T-values
+    tValues = {}
+    for i in list(anc.keys())[::-1]:# start from root
+        for p in anc[i]:
+            if p == root:
+                tValues[root]=1
+            else :# if not root
+                pp = ont.parents(p)# get parents of parent
+                omega = [tValues[o]*(nChildren[p]/nChildren[o]) for o in pp]# calculate omega using kids
+                # t-value is the average of parents' t-values multiplied by omega
+                tValues[p]=sum(omega)/len(omega)
+                #endfor
+            #endif
+        #endfor
+    #endfor
+    print(str(tValues))
+    return tValues
+#
+#
+#
 def getSvalue(t,ont,rootNodes,namespace):
     # 2. construct its graph
     node = ont.node(t)
