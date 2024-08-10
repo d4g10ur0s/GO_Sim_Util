@@ -14,6 +14,7 @@ from dask.distributed import Client,LocalCluster,progress
 import dask
 # custom modules
 from EdgeBasedSimilarity import edgeBasedMethods as ebm
+from InformationContentSimilarity import informationContentUtility as icu
 #
 #
 #
@@ -163,46 +164,26 @@ def main():
     ont = ob.OntologyFactory().create(obo_path)
     anc = allAncestorsAllTerms(terms,ont)
     '''
-    rada similarity
-    simRada = ebm.simRada(genes , geneData , anc)
-    print(str(simRada))
-    '''
-    # 1. get roots
-    print('Getting Root Nodes !')
-    rootNodes={}
-    namespace = []
-    for r in ont.get_roots():
-        rootNodes[str(ont.node(r)['label'])] = r
-        namespace.append(str(ont.node(r)['label']))
-    # ---
-    #
-    # ---
-    # 0. get two random nodes
     for i in range(100):
         t1 = random.choice(terms)
         t2 = random.choice(terms)
-        root1 ,namespace1 = findRoot(t1, ont , namespace, rootNodes)
-        root2 ,namespace2 = findRoot(t2, ont , namespace, rootNodes)
-        tval1 = ebm.getTValues(t1, root1 , ont)
-        tval2 = ebm.getTValues(t2, root2 , ont)
-        anc1 = allAncestors(t1 , root1 , ont)
-        anc2 = allAncestors(t2 , root2 , ont)
-        mpath = ebm.findMinimumPath(t1, t2, (anc1 , root1) , (anc2 , root2) ,ont)
-        sim = 0
-        print(f'Shortest path : {mpath}')
-        if not mpath==None :
-            for node in mpath :
-                if node in tval1.keys():
-                    sim+=tval1[node]
-                else:
-                    sim+=tval2[node]
-            #endfor
-            print(f'Semantic Distance of {t1} , {t2} : {np.arctan(sim)/(np.pi/2)}')
-            print(f'Semantic Similarity of {t1} , {t2} : {1 - np.arctan(sim)/(np.pi/2)}')
-        else :
-            print(f'Semantic Distance of {t1} , {t2} : {1}')
-            print(f'Semantic Similarity of {t1} , {t2} : {0}')
-    #d = findAllChildrenInGraph(tnew,ont)
+        print(f'Semantic Similarity of {t1} , {t2} : {ebm.shortestSemanticDifferentiationDistance(t1,t2,ont)}')
+    '''
+    termFrequency = {}
+    for g in geneData :
+        for t in geneData[g] :
+            if t[0] in termFrequency.keys():
+                termFrequency[t[0]]+=1
+            else:
+                termFrequency[t[0]]=1
+            #endif
+        #endfor
+    #endfor
+    tf = pd.DataFrame.from_dict(termFrequency,orient='index')
+    print(tf)
+    df = pd.concat([tf.transpose(), icu.parentFrequency(tf.transpose() , ont).transpose()], axis=1)
+    print(f'Max frequency : {df.max()}')
+    print(f'{df}')
 
 if __name__ == "__main__":
     main()

@@ -1,6 +1,9 @@
-import ontobio as ont
+# data analysis modules
+import numpy as np
+# ontology modules
+import ontobio as ob
 import networkx as nx
-
+# custom modules
 from Parsing import graphUtilities as gu
 
 def getTValues(t , root , ont):
@@ -39,6 +42,40 @@ def getTValues(t , root , ont):
     omega = [tValues[o]*(nChildren[t]/nChildren[o]) for o in pp]# calculate omega using kids
     tValues[t]=sum(omega)/len(omega)
     return tValues
+#
+#
+#
+def shortestSemanticDifferentiationDistance(t1 , t2 , ont):
+    # 0. get roots
+    rootNodes={}
+    namespace = []
+    for r in ont.get_roots():
+        rootNodes[str(ont.node(r)['label'])] = r
+        namespace.append(str(ont.node(r)['label']))
+    #endfor
+    root1 ,namespace1 = gu.findRoot(t1, ont , namespace, rootNodes)
+    root2 ,namespace2 = gu.findRoot(t2, ont , namespace, rootNodes)
+    tval1 = getTValues(t1, root1 , ont)
+    tval2 = getTValues(t2, root2 , ont)
+    anc1 = gu.allAncestors(t1 , root1 , ont)
+    anc2 = gu.allAncestors(t2 , root2 , ont)
+    mpath = findMinimumPath(t1, t2, (anc1 , root1) , (anc2 , root2) ,ont)
+    sim = 0
+    #print(f'Shortest path : {mpath}')
+    if not mpath==None :
+        for node in mpath :
+            if node in tval1.keys():
+                sim+=tval1[node]
+            else:
+                sim+=tval2[node]
+        #endfor
+        return 1 - np.arctan(sim)/(np.pi/2)
+        #print(f'Semantic Distance of {t1} , {t2} : {np.arctan(sim)/(np.pi/2)}')
+        #print(f'Semantic Similarity of {t1} , {t2} : {1 - np.arctan(sim)/(np.pi/2)}')
+    else :
+        return 0
+        #print(f'Semantic Distance of {t1} , {t2} : {1}')
+        #print(f'Semantic Similarity of {t1} , {t2} : {0}')
 #
 #
 #
@@ -201,8 +238,6 @@ def findMinimumPath(t1, t2, anc1 , anc2 ,ont):
         #endif
     #endfor
     # return the path : t1 -> root -> t2
-    print(str(p1))
-    print(str(p2))
     p2.pop(0)# pop lca for 2nd path
     return p1[::-1] + p2# reverse the path from lca to t1 , to get the path t1 -> lca
 #
