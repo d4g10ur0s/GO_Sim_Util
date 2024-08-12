@@ -6,7 +6,61 @@ import ontobio as ob
 import networkx as nx
 # custom modules
 from Parsing import graphUtilities as gu
-
+def grasm(t1, t2 , ont , ic):
+    # 0. get roots
+    rootNodes={}
+    namespace = []
+    for r in ont.get_roots():
+        rootNodes[str(ont.node(r)['label'])] = r
+        namespace.append(str(ont.node(r)['label']))
+    # 1. find roots
+    root1 = gu.findRoot(t1, ont , namespace, rootNodes)
+    root2 = gu.findRoot(t2, ont , namespace, rootNodes)
+    anc1 = gu.allAncestors(t1 , root1[0] , ont)
+    anc2 = gu.allAncestors(t2 , root2[0] , ont)
+    # 2. get all common ancestors
+    ancestor1 = []
+    for i in anc1 :
+        ancestor1+=anc1[i]
+    ancestor2 = []
+    for i in anc2 :
+        ancestor2+=anc2[i]
+    commonAnc = set(ancestor1)&set(ancestor2)
+    # 3. for each ancestor find the number of paths
+    G = ont.get_graph()
+    ca = {}
+    for i in commonAnc:
+        npaths1 = len(list(nx.all_simple_paths(G, i, t1)))
+        npaths2 = len(list(nx.all_simple_paths(G, i, t2)))
+        if abs(npaths1 - npaths2) in ca.keys():
+            ca[abs(npaths1 - npaths2)].append(i)
+        else:
+            ca[abs(npaths1 - npaths2)] = [i]
+        #endif
+    #endfor
+    # 4. exclude multiple ancestors from each level
+    dca = {}
+    for i in ca :
+        p = None
+        tempic = -1
+        for a in ca[i]:
+            if ic['IC'][a] > tempic :
+                tempic = ic['IC'][a]
+                p = a
+        #endfor
+        dca[i] = (p , tempic)
+    #endfor
+    sm = 0
+    for i in dca :
+        sm+=dca[i][1]
+    if len(dca.keys())==0:
+        print(f'DCA similarity of {t1} , {t2} is {sm}')
+    else:
+        sm /= len(dca.keys())
+        print(f'DCA similarity of {t1} , {t2} is {sm}')
+#
+#
+#
 def parentFrequency(terms, ont):
     # 1. for each term get its parents' frequency
     tKeys = list(terms.keys())
