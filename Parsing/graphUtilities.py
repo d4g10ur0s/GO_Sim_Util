@@ -163,21 +163,43 @@ def main():
     print('Creating Ontology from file .')
     ont = ob.OntologyFactory().create(obo_path)
     anc = allAncestorsAllTerms(terms,ont)
-    df = icu.frequencyANDprobability(geneData , ont)
-    df = pd.concat([df, -np.log(df['probability'])], axis=1)
+    ic = icu.frequencyANDprobability(geneData , ont)
+    ic = pd.concat([ic, -np.log(ic['probability'])], axis=1)
     new_columns = ['frequency', 'probability', 'IC']
-    df.columns = new_columns
-    print(f'{df}')
+    ic.columns = new_columns
+    print(f'{ic}')
     # resnik
-    for i in range(100):
+    for i in range(250):
         t1 = random.choice(terms)
         t2 = random.choice(terms)
-        anc , simRes = icu.simResnik(t1 , t2 , ont ,df)
-        print(f'Term {t1} , {t2} Resnik similarity given by common ancestor {anc} is : {simRes}')
-        simJiang = (2 * simRes) / (df['IC'][t1]+df['IC'][t2])
-        print(f'Term {t1} , {t2} Jiang similarity given by common ancestor {anc} is : {simJiang}')
-        simLin = (2 * simRes) - (df['IC'][t1]+df['IC'][t2])
-        print(f'Term {t1} , {t2} Jiang similarity given by common ancestor {anc} is : {simLin}')
+        anc , simRes = icu.simResnik(t1 , t2 , ont ,ic)
+        if not anc==None:
+            icu.similarityJiang(simRes , t1 , t2 , ic , anc)
+            icu.similarityLin(simRes , t1 , t2 , ic , anc)
+            icu.similarityRelevance(t1 , t2 , ic , anc)
+            icu.similarityIC(t1 , t2 , ic , anc)
+            '''
+            print('*'*25)
+            print(f'Term {t1} , {t2} Resnik similarity given by common ancestor {anc} is : {simRes}')
+            simJiang = (2 * simRes) / (ic['IC'][t1]+ic['IC'][t2])
+            print('-'*25)
+            print(f'Term {t1} , {t2} Jiang similarity given by common ancestor {anc} is : {simJiang}')
+            print('-'*25)
+            simLin = (2 * simRes) - ic['IC'][t1] -ic['IC'][t2]
+            print(f'Term {t1} , {t2} Lin similarity given by common ancestor {anc} is : {simLin}')
+            print('*'*25)
+            simRel = ( (2 * np.log(ic['probability'][anc]) ) / (np.log(ic['probability'][t1])+np.log(ic['probability'][t2])) ) * (1-ic['probability'][anc])
+            print(f'Term {t1} , {t2} Relevance similarity given by common ancestor {anc} is : {simRel}')
+            print('*'*25)
+            simIC = ( (2 * ic['probability'][anc]) / (np.log(ic['probability'][t1])+np.log(ic['probability'][t2])) ) * (1- ( 1/(1+ic['probability'][anc]) ) )
+            print(f'Term {t1} , {t2} IC similarity given by common ancestor {anc} is : {simIC}')
+            print('*'*25)
+            '''
+        else:
+            print('*'*25)
+            print(f'Term {t1} , {t2} similarity is : {0}')
+            print('No common ancestor .')
+            print('*'*25)
 
 if __name__ == "__main__":
     main()

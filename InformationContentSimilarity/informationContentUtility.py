@@ -8,22 +8,19 @@ import networkx as nx
 from Parsing import graphUtilities as gu
 
 def parentFrequency(terms, ont):
-    pf = {}
     # 1. for each term get its parents' frequency
-    tKeys = terms.columns.tolist()
+    tKeys = list(terms.keys())
     counter = 0
     for t in tKeys :
-        print(f'Number of terms processed : {counter}')
-        counter+=1
-        parents = ont.parents(t)
+        parents = ont.parents(t)# start with the immidiate parents
         while len(parents) > 0:
             tparents = []
             # 2. for each parent add one to parent frequency
             for p in parents:
-                if p in pf.keys():
-                    pf[p]+=1
+                if p in list(terms.keys()):
+                    terms[p]+=1
                 else:
-                    pf[p]=1
+                    terms[p]=1
                 #endif
                 # 3. get parents of parents
                 tparents += ont.parents(p)# u need to have multiple times one parent , so not use of set
@@ -31,7 +28,7 @@ def parentFrequency(terms, ont):
             parents = tparents
         #endwhile
     #endfor
-    tf = pd.DataFrame.from_dict(pf,orient='index')
+    tf = pd.DataFrame.from_dict(terms,orient='index')
     return tf
 #
 #
@@ -47,9 +44,7 @@ def frequencyANDprobability(geneData , ont):
             #endif
         #endfor
     #endfor
-    tf = pd.DataFrame.from_dict(termFrequency,orient='index')
-    df = pd.concat([tf.transpose(), parentFrequency(tf.transpose() , ont).transpose()], axis=1)
-    df = df.transpose()
+    df = parentFrequency(termFrequency, ont)
     df = pd.concat([df, df/df[0].max()], axis=1)
     new_columns = ['frequency', 'probability']
     df.columns = new_columns
@@ -77,16 +72,37 @@ def simResnik(t1, t2 , ont , df):
         ancset2 += anc2[i]
     ancIntersection = set(ancset1)&set(ancset2)
     if len(ancIntersection)<1:
-        print(f'Term {t1} , {t2} similarity is : {0}')
         return [None, 0]
     else:
-        pic = 10e10
+        pic = -1
         anc = None
         for p in ancIntersection:
-            if df['IC'][p] < pic:
+            if df['IC'][p] > pic:
                 pic=df['IC'][p]
                 anc = p
             #endif
         #endfor
+        print('*'*25)
+        print(f'Term {t1} , {t2} Resnik similarity given by common ancestor {anc} is : {pic}')
         return [anc, pic]
     #endif
+#
+# Similarities using Resnik Measure
+#
+def similarityJiang(simRes , t1 , t2 , ic , anc):
+    simJiang = (2 * simRes) / (ic['IC'][t1]+ic['IC'][t2])
+    print('-'*25)
+    print(f'Term {t1} , {t2} Jiang similarity given by common ancestor {anc} is : {simJiang}')
+    print('-'*25)
+def similarityLin(simRes , t1 , t2 , ic , anc):
+    simLin = (2 * simRes) - ic['IC'][t1] -ic['IC'][t2]
+    print(f'Term {t1} , {t2} Lin similarity given by common ancestor {anc} is : {simLin}')
+    print('*'*25)
+def similarityRelevance(t1 , t2 , ic , anc):
+    simRel = ( (2 * np.log(ic['probability'][anc]) ) / (np.log(ic['probability'][t1])+np.log(ic['probability'][t2])) ) * (1-ic['probability'][anc])
+    print(f'Term {t1} , {t2} Relevance similarity given by common ancestor {anc} is : {simRel}')
+    print('*'*25)
+def similarityIC(t1 , t2 , ic , anc):
+    simIC = ( (2 * ic['probability'][anc]) / (np.log(ic['probability'][t1])+np.log(ic['probability'][t2])) ) * (1- ( 1/(1+ic['probability'][anc]) ) )
+    print(f'Term {t1} , {t2} IC similarity given by common ancestor {anc} is : {simIC}')
+    print('*'*25)
