@@ -168,38 +168,76 @@ def main():
     new_columns = ['frequency', 'probability', 'IC']
     ic.columns = new_columns
     print(f'{ic}')
-    # resnik
+    # 0. get roots
+    rootNodes={}
+    namespace = []
+    for r in ont.get_roots():
+        rootNodes[str(ont.node(r)['label'])] = r
+        namespace.append(str(ont.node(r)['label']))
+    # 1. get all ancestors
     for i in range(250):
         t1 = random.choice(terms)
+        root1 = findRoot(t1, ont , namespace, rootNodes)
+        anc1 = allAncestors(t1 , root1[0] , ont)
         t2 = random.choice(terms)
+        root2 = findRoot(t2, ont , namespace, rootNodes)
+        anc2 = allAncestors(t2 , root2[0] , ont)
+        # 2. get all common ancestors
+        ancestor1 = []
+        for i in anc1 :
+            ancestor1+=anc1[i]
+        ancestor2 = []
+        for i in anc2 :
+            ancestor2+=anc2[i]
+        commonAnc = set(ancestor1)&set(ancestor2)
+        # 3. for each ancestor find the number of paths
+        G = ont.get_graph()
+        ca = {}
+        for i in commonAnc:
+            npaths1 = len(list(nx.all_simple_paths(G, i, t1)))
+            npaths2 = len(list(nx.all_simple_paths(G, i, t2)))
+            if npaths in ca.keys():
+                ca[npaths].append(abs(npaths1 - npaths2))
+            else:
+                ca[npaths] = [abs(npaths1 - npaths2)]
+            #endif
+        #endfor
+        # 4. exclude multiple ancestors from each level
+        dca = {}
+        for i in ca :
+            p = None
+            ic = -1
+            for a in ca[i]:
+                if ic['IC'][a] > ic :
+                    ic = ic['IC'][a]
+                    p = a
+            #endfor
+            dca[i] = (p , ic)
+        #endfor
+        print(dca)
+        sm = 0
+        for i in dca :
+            sm+=dca[i][1]
+        if len(dca.keys())==0:
+            print(f'DCA similarity of {t1} , {t2} is {sm}')
+        else:
+            sm /= len(dca.keys())
+            print(f'DCA similarity of {t1} , {t2} is {sm}')
+
+    '''
+    # resnik
         anc , simRes = icu.simResnik(t1 , t2 , ont ,ic)
         if not anc==None:
             icu.similarityJiang(simRes , t1 , t2 , ic , anc)
             icu.similarityLin(simRes , t1 , t2 , ic , anc)
             icu.similarityRelevance(t1 , t2 , ic , anc)
             icu.similarityIC(t1 , t2 , ic , anc)
-            '''
-            print('*'*25)
-            print(f'Term {t1} , {t2} Resnik similarity given by common ancestor {anc} is : {simRes}')
-            simJiang = (2 * simRes) / (ic['IC'][t1]+ic['IC'][t2])
-            print('-'*25)
-            print(f'Term {t1} , {t2} Jiang similarity given by common ancestor {anc} is : {simJiang}')
-            print('-'*25)
-            simLin = (2 * simRes) - ic['IC'][t1] -ic['IC'][t2]
-            print(f'Term {t1} , {t2} Lin similarity given by common ancestor {anc} is : {simLin}')
-            print('*'*25)
-            simRel = ( (2 * np.log(ic['probability'][anc]) ) / (np.log(ic['probability'][t1])+np.log(ic['probability'][t2])) ) * (1-ic['probability'][anc])
-            print(f'Term {t1} , {t2} Relevance similarity given by common ancestor {anc} is : {simRel}')
-            print('*'*25)
-            simIC = ( (2 * ic['probability'][anc]) / (np.log(ic['probability'][t1])+np.log(ic['probability'][t2])) ) * (1- ( 1/(1+ic['probability'][anc]) ) )
-            print(f'Term {t1} , {t2} IC similarity given by common ancestor {anc} is : {simIC}')
-            print('*'*25)
-            '''
         else:
             print('*'*25)
             print(f'Term {t1} , {t2} similarity is : {0}')
             print('No common ancestor .')
             print('*'*25)
+    '''
 
 if __name__ == "__main__":
     main()
