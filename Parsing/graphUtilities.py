@@ -87,10 +87,9 @@ def read_json_file(file_path):
 #
 #
 #
-def allAncestors(term , root , ont):
+def allAncestors(term , ont):
     '''
     Input : id of a go term
-            subontology root
             ontology graph
     - - - - -
     Process : 1. get parents
@@ -100,22 +99,41 @@ def allAncestors(term , root , ont):
     - - - - -
     Output : a dictionary with all ancestors and distance from them
     '''
-    ret = {}
-    dist = 1
-    parents = ont.parents(term)# 1. get parents
-    ret[dist] = parents# 2. store parents using distance
-    while not len(parents)==0:
-        temp = []
-        for p in parents :
-            temp = temp + ont.parents(p)
+    # 1. get root term
+    root , namespace = findRoot(t,ont)
+    # 2.  get all paths from root to term
+    G = ont.get_graph()
+    paths = list(nx.all_simple_paths(G , root , t))
+    # 3. for each path get uncommon nodes only
+    a = set()
+    rootDist = 10e10
+    for p in paths:# 4.1 add minimum path from root to t
+        if len(p)<rootDist:
+            rootDist = len(p)
+        #endif
+        a = a|set(p)
+    #endfor
+    dists[rootDist] = [root]# 4.2 add minimum dist to root
+    # 4. exclude t and root
+    a.remove(t)
+    a.remove(root)
+    # 5. for each parent find the minimum path to t
+    for anc in a :
+        paths = list(nx.all_simple_paths(G , anc , t))
+        ancDist = 10e10
+        for p in paths : # 5.1 for each path
+            if len(p) < ancDist :# 5.2 find minimum
+                ancDist=len(p)
+            #endif
         #endfor
-        dist+=1
-        # * unique values *
-        parents = list(set(temp))
-        # 2. store parents using distance
-        ret[dist] = parents
-    #endwhile
-    return ret
+        if ancDist in dists.keys():# 5.3 add dist with the correct form
+            dists[ancDist].append(anc)
+        else :
+            dists[ancDist] = [anc]
+        #endif
+    #endfor
+    anc[t] = (dists , list(a) , namespace)
+    return anc
 
 def allAncestorsAllTerms(terms , ont):
     '''
@@ -141,6 +159,7 @@ def allAncestorsAllTerms(terms , ont):
     counter=0
     # 1. for each term
     for t in terms :
+        #dists = allAncestors(t)
         dists = {}
         # 2. get root term
         root , namespace = findRoot(t,ont)
