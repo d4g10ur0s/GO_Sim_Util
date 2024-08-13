@@ -15,10 +15,18 @@ import dask
 # custom modules
 from EdgeBasedSimilarity import edgeBasedMethods as ebm
 from InformationContentSimilarity import informationContentUtility as icu
+from HybridSimilarity import hybridSimilarityUtils as hsu
 #
 #
 #
-def findRoot(t,ont ,namespaces,rootNodes):
+def findRoot(t,ont):
+    # 0. get roots
+    rootNodes={}
+    namespaces = []
+    for r in ont.get_roots():
+        rootNodes[str(ont.node(r)['label'])] = r
+        namespaces.append(str(ont.node(r)['label']))
+    # 1. get node information
     node = ont.node(t)
     root = None
     namespace = None
@@ -112,38 +120,62 @@ def allAncestors(term , root , ont):
 def allAncestorsAllTerms(terms , ont):
     '''
     Input : terms , ontology
-    - - - - -
-    Output : ancestors of all terms
+    - - - - - - - -
+    Algorithm :
+        1. for each term get all paths to every ancestor
+        2. find the minimum path to every ancestor
+        3. add the distance to term's dictionary
+    - - - - - - - -
+    Output :
+    {
+        termID :
+                (
+                    {distanceFromAncestor : ancestorList},
+                    ancestorList ,
+                    namespace
+                )
+
+    }
     '''
-    # 1. get roots
-    print('Getting Root Nodes !')
-    rootNodes={}
-    namespace = []
-    for r in ont.get_roots():
-        rootNodes[str(ont.node(r)['label'])] = r
-        namespace.append(str(ont.node(r)['label']))
-    # 2. for each term get all ancestors
     anc = {}
     counter=0
+    # 1. for each term
     for t in terms :
-        try :
-            #print(str(t))
-            node = ont.node(t)
-            #print(f'Node\'s namespace : {node['meta']['basicPropertyValues'][0]['val']}')
-            root = None
-            tnamespace = None
-            for i in node['meta']['basicPropertyValues']:
-                if i['val'] in namespace :
-                    root = rootNodes[i['val']]
-                    tnamespace=i['val']
-            anc[t] = (allAncestors(t , root , ont) , tnamespace)
-            counter+=1
-            if counter%10 == 0:
-                print(f'Terms processed : {counter}')
-            #print(str(anc[t]))
-        except KeyError as e:
-            print(str(e))
-            print(str(ont.node(t)))
+        dists = {}
+        # 2. get root term
+        root , namespace = findRoot(t,ont)
+        # 3.  get all paths from root to term
+        G = ont.get_graph()
+        paths = list(nx.all_simple_paths(G , root , t))
+        # 4. for each path get uncommon nodes only
+        a = set()
+        rootDist = 10e10
+        for p in paths:# 4.1 add minimum path from root to t
+            if len(p)<rootDist:
+                rootDist = len(p)
+            #endif
+            a = a|set(p)
+        #endfor
+        dists[rootDist] = [root]# 4.2 add minimum dist to root
+        # 5. exclude t and root
+        a.remove(t)
+        a.remove(root)
+        # 6. for each parent find the minimum path to t
+        for anc in a :
+            paths = list(nx.all_simple_paths(G , anc , t))
+            ancDist = 10e10
+            for p in paths : # 6.1 for each path
+                if len(p) < ancDist :# 6.2 find minimum
+                    ancDist=len(p)
+                #endif
+            #endfor
+            if ancDist in dists.keys():# 6.3 add dist with the correct form
+                dists[ancDist].append(anc)
+            else :
+                dists[ancDist] = [anc]
+            #endif
+        #endfor
+        anc[t] = (dists , list(a) , namespace)
     #endfor
     return anc
 
@@ -162,53 +194,13 @@ def main():
     # create ontology
     print('Creating Ontology from file .')
     ont = ob.OntologyFactory().create(obo_path)
-    anc = allAncestorsAllTerms(terms,ont)
+    '''anc = allAncestorsAllTerms(terms,ont)'''
     ic = icu.frequencyANDprobability(geneData , ont)
     ic = pd.concat([ic, -np.log(ic['probability'])], axis=1)
     new_columns = ['frequency', 'probability', 'IC']
     ic.columns = new_columns
     print(f'{ic}')
-    # 0. get roots
-    rootNodes={}
-    namespace = []
-    for r in ont.get_roots():
-        rootNodes[str(ont.node(r)['label'])] = r
-        namespace.append(str(ont.node(r)['label']))
-    # 1. calculate ICT values
-    # 1.1 get number of terms
-    nTerms = ont.get_graph().number_of_nodes()
-    # 1.2 for each term add its parents to term dataset
-    for a in anc :
-        for i in anc[a][0].keys():
-            terms+=anc[a][0][i]
-        #endfor
-    #endfor
-    # 1.3 for each term in the genes dataset find number of children
-    ict = {}
-    for t in set(terms) :
-        dists , n = findAllChildrenInGraph(t, ont)
-        ict[t] = -np.log(n/nTerms)
-    #endfor
-    print(str(ict))
-    # 1. get roots
-    # 2. reconstruct each ontology graph
-    # 2.1 get roots
-    rootNodes={}
-    namespace = []
-    for r in ont.get_roots():
-        rootNodes[str(ont.node(r)['label'])] = r
-        namespace.append(str(ont.node(r)['label']))
-    # 2.2 get all child nodes from each ontology
-    ontologies = {}
-    for i in ict :
-        root , namespace = findRoot(i,ont,namespace,rootNodes)
-        if namespace in ontologies.keys():
-            ontologies[namespace].append(i)
-        else:
-            ontologies[namespace]=[root,i]
-        #endif
-    #endfor
-    print(ontologies)
+    hsu.getTransitionProb(ic, ont)
     '''
     for i in range(250):
         t1 = random.choice(terms)

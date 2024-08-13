@@ -6,18 +6,68 @@ import ontobio as ob
 import networkx as nx
 # custom modules
 from Parsing import graphUtilities as gu
+
 def calcICT(terms, ont):
-    pass
-#
-#
-#
-def grasm(t1, t2 , ont , ic):
     # 0. get roots
     rootNodes={}
     namespace = []
     for r in ont.get_roots():
         rootNodes[str(ont.node(r)['label'])] = r
         namespace.append(str(ont.node(r)['label']))
+    # 1. calculate ICT values
+    # 1.1 get number of terms
+    nTerms = ont.get_graph().number_of_nodes()
+    # 1.2 for each term add its parents to term dataset
+    for a in anc :
+        for i in anc[a][0].keys():
+            terms+=anc[a][0][i]
+        #endfor
+    #endfor
+    # 1.3 for each term in the genes dataset find number of children
+    ict = {}
+    for t in set(terms) :
+        dists , n = gu.findAllChildrenInGraph(t, ont)
+        if n==0:
+            ict[t] = 0
+        else:
+            ict[t] = -np.log(n/nTerms)
+    #endfor
+    # 1. get roots
+    # 2. reconstruct each ontology graph
+    # 2.1 get roots
+    rootNodes={}
+    namespace = []
+    for r in ont.get_roots():
+        rootNodes[str(ont.node(r)['label'])] = r
+        namespace.append(str(ont.node(r)['label']))
+    # 2.2 get all nodes from each ontology
+    ontologies = {}
+    for i in ict.keys() :
+        root , subont = gu.findRoot(i,ont,namespace,rootNodes)
+        if subont in ontologies.keys():
+            ontologies[subont].append(i)
+        else:
+            ontologies[subont]=[root,i]
+        #endif
+    #endfor
+    # 2.3 find cutoff to be least 20% of values
+    cutoffValues = {}
+    for sub in ontologies:
+        avg = 0
+        for t in ontologies[sub]:
+            avg+=ict[t]
+        #endfor
+        avg/=len(ontologies[sub])
+        avg=avg - avg * 0.8
+        cutoffValues[sub]=avg
+    #endfor
+    print(cutoffValues)
+    # 2.4 construct meta roots
+    # 2.4.1 find dist 1 nodes with similar ict values
+#
+#
+#
+def grasm(t1, t2 , ont , ic):
     # 1. find roots
     root1 = gu.findRoot(t1, ont , namespace, rootNodes)
     root2 = gu.findRoot(t2, ont , namespace, rootNodes)
@@ -67,33 +117,39 @@ def grasm(t1, t2 , ont , ic):
 #
 #
 def parentFrequency(terms, ont):
-    # 1. for each term get its parents' frequency
-    tKeys = list(terms.keys())
     counter = 0
+    # 0. get all terms
+    tKeys = list(terms.keys())
+    # 1. for each term get all of its parents
     for t in tKeys :
-        parents = ont.parents(t)# start with the immidiate parents
-        while len(parents) > 0:
-            tparents = []
-            # 2. for each parent add one to parent frequency
-            for p in parents:
-                if p in list(terms.keys()):
-                    terms[p]+=1
+        # 2. get root
+        rterm , namespace = gu.findRoot(t,ont)
+        # 3. get all paths from root to term
+        G=ont.get_graph()
+        paths = list( nx.all_simple_paths(G , rterm , t) )
+        # 4. for each path
+        for p in paths :
+            # 5. for each parent term in path
+            for pt in p :
+                counter+=1
+                if counter%100 == 0:
+                    print(f'No. of processed nodes : {counter}')
+                if pt == t :# DO NOT COUNT THE TERM t
+                    pass
+                elif pt in terms.keys():# add one more to pt
+                    terms[pt]+=1
                 else:
-                    terms[p]=1
+                    terms[pt]=1# first time seeing parent
                 #endif
-                # 3. get parents of parents
-                tparents += ont.parents(p)# u need to have multiple times one parent , so not use of set
             #endfor
-            parents = tparents
-        #endwhile
+        #endfor
     #endfor
-    tf = pd.DataFrame.from_dict(terms,orient='index')
-    return tf
 #
 #
 #
 def frequencyANDprobability(geneData , ont):
     termFrequency = {}
+    # 1. Get term frequency from annotations
     for g in geneData :
         for t in geneData[g] :
             if t[0] in termFrequency.keys():
@@ -103,7 +159,9 @@ def frequencyANDprobability(geneData , ont):
             #endif
         #endfor
     #endfor
-    df = parentFrequency(termFrequency, ont)
+    # 2. Get parent frequency from children term frequency
+    parentFrequency(termFrequency , ont)
+    df = pf.DataFrame.from_dict(data, orient='index',)
     df = pd.concat([df, df/df[0].max()], axis=1)
     new_columns = ['frequency', 'probability']
     df.columns = new_columns
