@@ -1,3 +1,6 @@
+# system modules
+import sys
+import time
 # data analysis modules
 import numpy as np
 import pandas as pd
@@ -6,7 +9,16 @@ import ontobio as ob
 import networkx as nx
 # custom modules
 from Parsing import graphUtilities as gu
-
+def progressBar(count_value, total, suffix=''):
+    bar_length = 120
+    filled_up_Length = int(round(bar_length* count_value / float(total)))
+    percentage = round(100.0 * count_value/float(total),1)
+    bar = '=' * filled_up_Length + '>' + '-' * (bar_length - filled_up_Length)
+    sys.stdout.write('[%s] %s%s Nodes left : %s\r' %(bar, percentage, '%', total-count_value))
+    sys.stdout.flush()
+#
+#
+#
 def calcICT(terms, ont):
     # 0. get roots
     rootNodes={}
@@ -115,23 +127,25 @@ def grasm(t1, t2 , ont , ic):
 #
 #
 def parentFrequency(terms, ont):
-    counter = 0
+    G=ont.get_graph()
     # 0. get all terms
     tKeys = list(terms.keys())
     # 1. for each term get all of its parents
+    tcounter=0
     for t in tKeys :
+        tcounter+=1
+        print(f'Processing term : {t}\n')
+        progressBar(tcounter, len(tKeys))
         # 2. get root
         rterm , namespace = gu.findRoot(t,ont)
         # 3. get all paths from root to term
-        G=ont.get_graph()
         paths = list( nx.all_simple_paths(G , rterm , t) )
         # 4. for each path
+        counter=0
+        totalTerms=sum([len(p) for p in paths])
         for p in paths :
             # 5. for each parent term in path
             for pt in p :
-                counter+=1
-                if counter%100 == 0:
-                    print(f'No. of processed nodes : {counter}')
                 if pt == t :# DO NOT COUNT THE TERM t
                     pass
                 elif pt in terms.keys():# add one more to pt
