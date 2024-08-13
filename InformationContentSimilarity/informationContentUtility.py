@@ -6,6 +6,11 @@ import ontobio as ob
 import networkx as nx
 # custom modules
 from Parsing import graphUtilities as gu
+def calcICT(terms, ont):
+    pass
+#
+#
+#
 def grasm(t1, t2 , ont , ic):
     # 0. get roots
     rootNodes={}

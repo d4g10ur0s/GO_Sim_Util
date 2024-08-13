@@ -174,12 +174,46 @@ def main():
     for r in ont.get_roots():
         rootNodes[str(ont.node(r)['label'])] = r
         namespace.append(str(ont.node(r)['label']))
-    # 1. get all ancestors
+    # 1. calculate ICT values
+    # 1.1 get number of terms
+    nTerms = ont.get_graph().number_of_nodes()
+    # 1.2 for each term add its parents to term dataset
+    for a in anc :
+        for i in anc[a][0].keys():
+            terms+=anc[a][0][i]
+        #endfor
+    #endfor
+    # 1.3 for each term in the genes dataset find number of children
+    ict = {}
+    for t in set(terms) :
+        dists , n = findAllChildrenInGraph(t, ont)
+        ict[t] = -np.log(n/nTerms)
+    #endfor
+    print(str(ict))
+    # 1. get roots
+    # 2. reconstruct each ontology graph
+    # 2.1 get roots
+    rootNodes={}
+    namespace = []
+    for r in ont.get_roots():
+        rootNodes[str(ont.node(r)['label'])] = r
+        namespace.append(str(ont.node(r)['label']))
+    # 2.2 get all child nodes from each ontology
+    ontologies = {}
+    for i in ict :
+        root , namespace = findRoot(i,ont,namespace,rootNodes)
+        if namespace in ontologies.keys():
+            ontologies[namespace].append(i)
+        else:
+            ontologies[namespace]=[root,i]
+        #endif
+    #endfor
+    print(ontologies)
+    '''
     for i in range(250):
         t1 = random.choice(terms)
         t2 = random.choice(terms)
         icu.grasm(t1, t2 , ont , ic)
-    '''
     # resnik
         anc , simRes = icu.simResnik(t1 , t2 , ont ,ic)
         if not anc==None:
