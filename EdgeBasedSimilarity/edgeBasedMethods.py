@@ -46,36 +46,32 @@ def getTValues(t , root , ont):
 #
 #
 def shortestSemanticDifferentiationDistance(t1 , t2 , ont):
-    # 0. get roots
-    rootNodes={}
-    namespace = []
-    for r in ont.get_roots():
-        rootNodes[str(ont.node(r)['label'])] = r
-        namespace.append(str(ont.node(r)['label']))
-    #endfor
-    root1 ,namespace1 = gu.findRoot(t1, ont , namespace, rootNodes)
-    root2 ,namespace2 = gu.findRoot(t2, ont , namespace, rootNodes)
+    # 1. find roots
+    root1 ,namespace1 = gu.findRoot(t1, ont)
+    root2 ,namespace2 = gu.findRoot(t2, ont)
+    # NO COMMON ROOT THE SIMILARITY IS 0
+    if not(root1==root2):
+        return 0
+    #endif
+    # 2. calculate T - Values based on root
     tval1 = getTValues(t1, root1 , ont)
     tval2 = getTValues(t2, root2 , ont)
-    anc1 = gu.allAncestors(t1 , root1 , ont)
-    anc2 = gu.allAncestors(t2 , root2 , ont)
+    # 3. get distances to all ancestors
+    anc1 = gu.allAncestors(t1 , ont)
+    anc2 = gu.allAncestors(t2 , ont)
+    # 4. find the minimum path
     mpath = findMinimumPath(t1, t2, (anc1 , root1) , (anc2 , root2) ,ont)
     sim = 0
-    #print(f'Shortest path : {mpath}')
-    if not mpath==None :
-        for node in mpath :
+    if not mpath==None :# 5. if common ancestor exists
+        for node in mpath : # 6. add up ancestor's T-value
             if node in tval1.keys():
                 sim+=tval1[node]
             else:
                 sim+=tval2[node]
         #endfor
-        return 1 - np.arctan(sim)/(np.pi/2)
-        #print(f'Semantic Distance of {t1} , {t2} : {np.arctan(sim)/(np.pi/2)}')
-        #print(f'Semantic Similarity of {t1} , {t2} : {1 - np.arctan(sim)/(np.pi/2)}')
-    else :
+        return 1 - np.arctan(sim)/(np.pi/2) # 7. return semantic similarity
+    else :# 7. There is no common ancestor
         return 0
-        #print(f'Semantic Distance of {t1} , {t2} : {1}')
-        #print(f'Semantic Similarity of {t1} , {t2} : {0}')
 #
 #
 #

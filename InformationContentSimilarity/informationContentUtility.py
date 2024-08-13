@@ -68,11 +68,9 @@ def calcICT(terms, ont):
 #
 #
 def grasm(t1, t2 , ont , ic):
-    # 1. find roots
-    root1 = gu.findRoot(t1, ont , namespace, rootNodes)
-    root2 = gu.findRoot(t2, ont , namespace, rootNodes)
-    anc1 = gu.allAncestors(t1 , root1[0] , ont)
-    anc2 = gu.allAncestors(t2 , root2[0] , ont)
+    # 1. find all ancestors roots
+    anc1 = gu.allAncestors(t1 , ont)
+    anc2 = gu.allAncestors(t2 , ont)
     # 2. get all common ancestors
     ancestor1 = []
     for i in anc1 :
