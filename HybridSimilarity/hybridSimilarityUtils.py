@@ -21,33 +21,43 @@ from InformationContentSimilarity import informationContentUtility as icu
 def getTransitionProb(ic, ont):
     # 1. find transition probabilities
     transitionProb = {}
-    for i in ic.transpose().columns:
+    tcounter = 0
+    for i in ic['terms'].values.tolist():
+        tcounter+=1
+        icu.progressBar(tcounter, len(ic['terms'].values.tolist()))
         children = ont.children(i)
-        validChildren = set(children)&set(ic.transpose().columns)# SOME CHILDREN ARE XCLUDED BECAUSE THEY DONT EXIST IN ANNOTATION DATASET
+        validChildren = set(children)&set(ic['terms'].values.tolist())# SOME CHILDREN ARE XCLUDED BECAUSE THEY DONT EXIST IN ANNOTATION DATASET
         if len(validChildren)==0:# IF LEAF NODE , THEN NO CHILDREN
             transitionProb[i] = []
             continue
         #endif
-        # find parent frequency without its childrens frequency
-        Nsum = sum([ic['frequency'][c] for c in validChildren])
-        pfrequency = ic['frequency'][i] - Nsum
+        #  filter the DataFrame for children
+        children_df = ic[ic['terms'].isin(validChildren)]
+        # calculate the total frequency of children
+        Nsum = children_df['frequency'].sum()
+        # calculate the parent frequency without children
+        pfrequency = ic[ic['terms'] == i]['frequency'].values[0]
+        pfrequencySub = pfrequency - Nsum
         # calculate transition probabilities for each valid child
         for c in validChildren :
             # debug
-            if (1 - (pfrequency/ic['frequency'][i]) ) * (ic['frequency'][c]/Nsum) > 1.1:
-                print(sum([ic['frequency'][c] for c in validChildren]))
+            print((1 - (pfrequencySub/pfrequency) ) * (ic[ic['terms'] == c]['frequency']/Nsum))
+            if (1 - (pfrequencySub/pfrequency) ) * (ic[ic['terms'] == c]['frequency']/Nsum).values[0] > 1.1:
+                print(Nsum)
                 print(pfrequency)
-                print((1 - (pfrequency/ic['frequency'][i]) ))
-                input( (ic['frequency'][c]/Nsum) )
+                print((1 - (pfrequencySub/pfrequency) ))
+                input( (ic[ic['terms'] == c]['frequency']/Nsum) )
             if i in transitionProb.keys():
-                transitionProb[i].append( (c , (1 - pfrequency/ic['frequency'][i]) * (ic['frequency'][c]/Nsum) ) )
+                transitionProb[i].append( (c , (1 - pfrequencySub/pfrequency) * (ic[ic['terms'] == c]['frequency']/Nsum) ) )
             else:
-                transitionProb[i]=[(c , (1 - (pfrequency/ic['frequency'][i]) ) * (ic['frequency'][c]/Nsum) ) , ]
+                transitionProb[i]=[(c , (1 - (pfrequencySub/pfrequency) ) * (ic[ic['terms'] == c]['frequency']/Nsum) ) , ]
         #endfor
     #endfor
+    '''
     for i in transitionProb.keys():
         for item in transitionProb[i]:
             print(f'Transition Probabilities from term {i} to term {item[0]} : {item[1]}')
         #endfor
     #endfor
+    '''
     return transitionProb
