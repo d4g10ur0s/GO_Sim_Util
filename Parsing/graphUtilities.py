@@ -1,4 +1,5 @@
 import sys
+import os
 sys.path.append('/home/d4gl0s/diploma/Experiment')
 import json
 import random
@@ -87,7 +88,7 @@ def read_json_file(file_path):
 #
 #
 #
-def allAncestors(term , ont):
+def allAncestors(t , ont):
     '''
     Input : id of a go term
             ontology graph
@@ -99,6 +100,7 @@ def allAncestors(term , ont):
     - - - - -
     Output : a dictionary with all ancestors and distance from them
     '''
+    dists = {}
     # 1. get root term
     root , namespace = findRoot(t,ont)
     # 2.  get all paths from root to term
@@ -113,26 +115,22 @@ def allAncestors(term , ont):
         #endif
         a = a|set(p)
     #endfor
+    print(f'Uncommon nodes : {a}')
     dists[rootDist] = [root]# 4.2 add minimum dist to root
     # 4. exclude t and root
     a.remove(t)
     a.remove(root)
     # 5. for each parent find the minimum path to t
     for anc in a :
-        paths = list(nx.all_simple_paths(G , anc , t))
-        ancDist = 10e10
-        for p in paths : # 5.1 for each path
-            if len(p) < ancDist :# 5.2 find minimum
-                ancDist=len(p)
-            #endif
-        #endfor
+        path , ancDist = ebm.findMinimumPath(anc , t , G)
         if ancDist in dists.keys():# 5.3 add dist with the correct form
             dists[ancDist].append(anc)
         else :
             dists[ancDist] = [anc]
         #endif
     #endfor
-    anc[t] = (dists , list(a) , namespace)
+    print(dists)
+    anc = (dists , list(a) , namespace)
     return anc
 
 def allAncestorsAllTerms(terms , ont):
@@ -213,14 +211,32 @@ def main():
     # create ontology
     print('Creating Ontology from file .')
     ont = ob.OntologyFactory().create(obo_path)
-    '''anc = allAncestorsAllTerms(terms,ont)'''
-    ic = icu.frequencyANDprobability(geneData , ont)
-    ic = pd.concat([ic, -np.log(ic['probability'])], axis=1)
-    new_columns = ['frequency', 'probability', 'IC']
-    ic.columns = new_columns
+    annoTerms = None
+    # create a csv file with children info
+    if not os.path.exists('/home/d4gl0s/diploma/Experiment/Datasets/annotationTerms.csv'):
+        annoTerms = icu.frequencyANDprobability(geneData , ont)
+        annoTerms.to_csv('/home/d4gl0s/diploma/Experiment/Datasets/annotationTerms.csv')
+    #endif
+    annoTerms = pd.read_csv('/home/d4gl0s/diploma/Experiment/Datasets/annotationTerms.csv')
+    annoTerms.columns=['terms','frequency']
+    ic=None
+    if os.path.exists('/home/d4gl0s/diploma/Experiment/Datasets/informationContent.csv'):
+        ic = pd.read_csv('/home/d4gl0s/diploma/Experiment/Datasets/informationContent.csv')
+    else:
+        ic = icu.calcIC(annoTerms , ont)
+        ic.to_csv('/home/d4gl0s/diploma/Experiment/Datasets/informationContent.csv')
+    ic = pd.read_csv('/home/d4gl0s/diploma/Experiment/Datasets/informationContent.csv')
+    ic.columns=['terms','frequency','probability','IC']
+    pt = hsu.getTransitionProb(ic, ont)
+    '''
+        ic =
+        ic = pd.concat([ic, -np.log(ic['probability'])], axis=1)
+        new_columns = ['frequency', 'probability', 'IC']
+        ic.columns = new_columns
+        ic.to_csv('/home/d4gl0s/diploma/Experiment/Datasets/informationContent.csv')
+    ic.columns = ['terms','frequency', 'probability', 'IC']
     print(f'{ic}')
     hsu.getTransitionProb(ic, ont)
-    '''
     for i in range(250):
         t1 = random.choice(terms)
         t2 = random.choice(terms)
