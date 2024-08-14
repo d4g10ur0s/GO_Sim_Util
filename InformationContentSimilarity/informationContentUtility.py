@@ -1,6 +1,7 @@
-# system modules
+# basic modules
 import sys
 import time
+import random
 # data analysis modules
 import numpy as np
 import pandas as pd
@@ -10,12 +11,29 @@ import networkx as nx
 # custom modules
 from Parsing import graphUtilities as gu
 def progressBar(count_value, total, suffix=''):
-    bar_length = 120
+    emoji = [
+      '🤣','🙂', '🥰', '🙂', '👿', '🤡', '👽', '💩', '😤', '🤬', '🤯', '🥶',
+      '🥵','🥶', '🥵', '🤒', '🤕', '🤢', '🤮', '🤧', '🥴', '🤯','🤠', '🤥',
+      '🤫', '🤭', '🧐', '🤓', '🥸', '🥳', '🥲', '🥹', '🥱', '🤤','🤐','🤫',
+      '🤭', '🤑', '😬', '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶','🥴','🤯',
+      '🙁', '😤', '🤬', '🥶', '🥵', '🥶', '🥵', '🤒', '🤕', '🤢','🤮','🤧',
+      '🥴', '🤯', '🙄', '😬', '🤥', '🤫', '🤭', '🧐', '🤓', '🥸','🥳','🥲',
+      '🥹', '🥱', '🤤', '🤐', '🤫', '🤭', '🤑', '😬', '🤒', '🤕','🤢','🤮',
+      '🤧', '🥵', '🥶', '🥴', '🤯', '🙁', '😤', '🤬','🥶', '🥵', '🤒','🤕',
+      '🤢', '🤮', '🤧', '🥴', '🤯', '🙄', '😬', '🤥', '🤫','🤭','🧐','🤓' ,
+      '🥸', '🥳', '🥲', '🥹', '🥱', '🤤', '🤐', '🤫', '🤭','🤑','😬', '🤒',
+      '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '🥴', '🤯', '🙁', '😤','🤬','🥶',
+      '🥵', '🥶', '🥵','🤒', '🤕', '🤢', '🤮', '🤧', '🥴', '🤯','🙄', '😬',
+      '🤥', '🤫', '🤭', '🧐', '🤓','🥸', '🥳', '🥲', '🥹', '🥱',]
+    #emoji = ['\u1F615','\u1FAE4','\u1F61F','\u1F641','\u2639','\u1F62E','\u1F62F','\u1F632','\u1F633','\u1F97A','\u1F979','\u1F626','\u1F627','\u1F628','\u1F630','\u1F625','\u1F622','\u1F62D','\u1F631','\u1F616']
+    #emoji = [e.decode('utf-8') for e in encoded_emojis]
+    bar_length = 80
     filled_up_Length = int(round(bar_length* count_value / float(total)))
     percentage = round(100.0 * count_value/float(total),1)
-    bar = '=' * filled_up_Length + '>' + '-' * (bar_length - filled_up_Length)
-    sys.stdout.write('[%s] %s%s Nodes left : %s\r' %(bar, percentage, '%', total-count_value))
-    sys.stdout.flush()
+    bstring = ''.join(random.choices(emoji, k=filled_up_Length))
+    bar = bstring + '-' * (bar_length - filled_up_Length)
+    sys.stdout.write('[%s] %s%s Nodes left : %s\n' %(bar, percentage, '%', total-count_value))
+    #sys.stdout.flush()
 #
 #
 #
@@ -134,7 +152,6 @@ def parentFrequency(terms, ont):
     tcounter=0
     for t in tKeys :
         tcounter+=1
-        print(f'Processing term : {t}\n')
         progressBar(tcounter, len(tKeys))
         # 2. get root
         rterm , namespace = gu.findRoot(t,ont)
@@ -159,6 +176,61 @@ def parentFrequency(terms, ont):
 #
 #
 #
+def calcParentFrequency(t , tf , ont):
+    parents = ont.parents(t)
+    # 1. for each immidiate parent add parent's frequency
+    for p in parents:
+        if p in tf.keys():
+            tf[p] += tf[t]
+        else:
+            tf[p] = tf[t]
+    #endfor
+    # 2. do the same as long as parents exist
+    nextKids=parents
+    while len(nextKids) > 0:
+        tparents=set([])
+        #tcounter=0
+        for p in nextKids:
+            #tcounter+=1
+            #progressBar(tcounter, len(nextKids))
+            # 3. parent becomes the kid
+            temp = ont.parents(p)
+            tparents = tparents | set(temp)
+            # 4. for each parent of parent add parent's frequency
+            for pp in temp:
+                if pp in tf.keys():
+                    tf[pp] += tf[p]
+                else:
+                    tf[pp] = tf[p]
+            #endfor
+        #endfor
+        nextKids = list(tparents)
+    #endwhile
+#
+#
+#
+def calcIC(annoTerms , ont):
+    G = ont.get_graph()
+    tf = {}
+    # 0. turn terms to dictionary
+    for i in annoTerms['terms'].values.tolist():
+        tf[i]=annoTerms[annoTerms['terms']==i]['frequency'].values[0]
+    #endfor
+    # 1. for each term get his parents
+    parents = []
+    for t in annoTerms['terms'].values.tolist() :
+        tp = ont.parents(t)
+        calcParentFrequency(t , tf , ont)
+    #endfor
+    df = pd.DataFrame.from_dict(tf, orient='index',)
+    new_columns = ['frequency']
+    df.columns = new_columns
+    df['probability'] = df['frequency']/df['frequency'].max()
+    df['IC']= - np.log(df['probability'])
+    return df
+#
+#
+#
 def frequencyANDprobability(geneData , ont):
     termFrequency = {}
     # 1. Get term frequency from annotations
@@ -171,13 +243,14 @@ def frequencyANDprobability(geneData , ont):
             #endif
         #endfor
     #endfor
-    # 2. Get parent frequency from children term frequency
-    parentFrequency(termFrequency , ont)
-    df = pf.DataFrame.from_dict(data, orient='index',)
-    df = pd.concat([df, df/df[0].max()], axis=1)
-    new_columns = ['frequency', 'probability']
+    df = pd.DataFrame.from_dict(termFrequency, orient='index',)
+    new_columns = ['frequency']
     df.columns = new_columns
     return df
+    '''
+    parentFrequency(termFrequency , ont)
+    df = pd.concat([df, df/df[0].max()], axis=1)
+    '''
 #
 #
 #
