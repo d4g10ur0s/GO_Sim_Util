@@ -115,7 +115,7 @@ def allAncestors(t , ont):
         #endif
         a = a|set(p)
     #endfor
-    print(f'Uncommon nodes : {a}')
+    #print(f'Uncommon nodes : {a}')
     dists[rootDist] = [root]# 4.2 add minimum dist to root
     # 4. exclude t and root
     a.remove(t)
@@ -129,7 +129,7 @@ def allAncestors(t , ont):
             dists[ancDist] = [anc]
         #endif
     #endfor
-    print(dists)
+    #print(dists)
     anc = (dists , list(a) , namespace)
     return anc
 
@@ -227,7 +227,73 @@ def main():
         ic.to_csv('/home/d4gl0s/diploma/Experiment/Datasets/informationContent.csv')
     ic = pd.read_csv('/home/d4gl0s/diploma/Experiment/Datasets/informationContent.csv')
     ic.columns=['terms','frequency','probability','IC']
-    pt = hsu.getTransitionProb(ic, ont)
+    P = None
+    if os.path.exists('/home/d4gl0s/diploma/Experiment/Datasets/transitionProb.csv'):
+        P = pd.read_csv('/home/d4gl0s/diploma/Experiment/Datasets/transitionProb.csv')
+        P.set_index(ic['terms'].values.tolist(), inplace=True)
+    else:
+        # 1. get transition prob for each parent-child
+        tp = hsu.getTransitionProb(ic, ont)
+        # 2. initialize matrix P
+        P = pd.DataFrame(0, index=ic['terms'].values.tolist(), columns=ic['terms'].values.tolist(), dtype=np.float64)
+        print(P)
+        # 3. construct matrix P (filling rows)
+        tcounter = 0
+        for i in ic['terms'].values.tolist():# 3.1 for each column term
+            tcounter+=1
+            icu.progressBar(tcounter , len(ic['terms'].values.tolist())**2)
+            for j in ic['terms'].values.tolist():# 3.2 for each row term
+                tcounter+=1
+                # 3.2.1 get roots to see if there is a reachable path
+                #rooti , namespacei = findRoot(i,ont)
+                #rootj , namespacej = findRoot(j,ont)
+                if i==j:# 3.2.2 if same term , then value is 1
+                    P.loc[i , j]=1
+                #elif not (rooti==rootj):# 3.2.3 there is no reachable path
+                #    P.loc[i, j]=0
+                else:# 3.2.4 find transition probability from i to j
+                    p = 0
+                    if i in tp.keys():# roots have no transition prob
+                        for anc in tp[i]:
+                            if anc[0]==j:
+                                p=anc[1]
+                                break
+                            #endif
+                        #endfor
+                    #endif
+                    P.loc[i , j]=p
+                #endif
+            #endfor
+        #endfor
+        P.to_csv('/home/d4gl0s/diploma/Experiment/Datasets/transitionProb.csv',index=False)
+    #endif
+    print(P)
+    # 4. construct matrix W rows are leaf nodes and
+    identity_matrix = np.eye( len(ic['terms'].values.tolist()) )
+    W = pd.DataFrame(identity_matrix, index=ic['terms'].values.tolist(), columns=ic['terms'].values.tolist(),dtype=np.float64)
+    epsilon = .001
+    W_star = W
+    while 1 :
+        W=W_star
+        W_star=P*W
+        if (np.linalg.norm(W_star-W, axis=1)<epsilon).any() :
+            break
+    #endwhile
+    W=W_star
+    print(W)
+    print(W.loc[ic['terms'].tolist()][list(terms)].max())
+    # 5. get leaves - parents matrix
+    W_ll = W.loc[ic['terms'].tolist()][list(terms)]
+    # 6. Get leaves hosted similarity matrix
+    HSM = pd.DataFrame(0, index=ic['terms'].values.tolist(), columns=ic['terms'].values.tolist(), dtype=np.float64)
+    tcounter=0
+    for i in terms :
+        for j in terms :
+            tcounter+=1
+            icu.progressBar(tcounter , len(terms)**2)
+            anc , HSM.loc[i][j] = icu.simResnik(i,j,ont,ic)
+        #endfor
+    #endfor
     '''
         ic =
         ic = pd.concat([ic, -np.log(ic['probability'])], axis=1)

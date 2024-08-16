@@ -256,31 +256,19 @@ def frequencyANDprobability(geneData , ont):
 #
 def simResnik(t1, t2 , ont , df):
     # 0. get roots
-    rootNodes={}
-    namespace = []
-    for r in ont.get_roots():
-        rootNodes[str(ont.node(r)['label'])] = r
-        namespace.append(str(ont.node(r)['label']))
-    root1 ,namespace1 = gu.findRoot(t1, ont , namespace, rootNodes)
-    root2 ,namespace2 = gu.findRoot(t2, ont , namespace, rootNodes)
-    anc1 = gu.allAncestors(t1 , root1 , ont)
-    anc2 = gu.allAncestors(t2 , root2 , ont)
-    # find the common ancestor with the minimum IC
-    ancset1 = []
-    for i in anc1.keys():
-        ancset1 += anc1[i]
-    ancset2 = []
-    for i in anc2.keys():
-        ancset2 += anc2[i]
-    ancIntersection = set(ancset1)&set(ancset2)
+    root1 ,namespace1 = gu.findRoot(t1, ont)
+    root2 ,namespace2 = gu.findRoot(t2, ont)
+    anc1 = gu.allAncestors(t1 , ont)
+    anc2 = gu.allAncestors(t2 , ont)
+    ancIntersection = set(anc1[1])&set(anc2[1])
     if len(ancIntersection)<1:
         return [None, 0]
     else:
         pic = -1
         anc = None
         for p in ancIntersection:
-            if df['IC'][p] > pic:
-                pic=df['IC'][p]
+            if df[df['terms'] == p]['IC'].values[0] > pic:
+                pic=df[df['terms'] == p]['IC'].values[0]
                 anc = p
             #endif
         #endfor

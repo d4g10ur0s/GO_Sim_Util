@@ -40,17 +40,10 @@ def getTransitionProb(ic, ont):
         pfrequencySub = pfrequency - Nsum
         # calculate transition probabilities for each valid child
         for c in validChildren :
-            # debug
-            print((1 - (pfrequencySub/pfrequency) ) * (ic[ic['terms'] == c]['frequency']/Nsum))
-            if (1 - (pfrequencySub/pfrequency) ) * (ic[ic['terms'] == c]['frequency']/Nsum).values[0] > 1.1:
-                print(Nsum)
-                print(pfrequency)
-                print((1 - (pfrequencySub/pfrequency) ))
-                input( (ic[ic['terms'] == c]['frequency']/Nsum) )
-            if i in transitionProb.keys():
-                transitionProb[i].append( (c , (1 - pfrequencySub/pfrequency) * (ic[ic['terms'] == c]['frequency']/Nsum) ) )
+            if c in transitionProb.keys():
+                transitionProb[c].append( (i , ( (1 - pfrequencySub/pfrequency) * (ic[ic['terms'] == c]['frequency']/Nsum) ).values[0]) )
             else:
-                transitionProb[i]=[(c , (1 - (pfrequencySub/pfrequency) ) * (ic[ic['terms'] == c]['frequency']/Nsum) ) , ]
+                transitionProb[c]=[(i , ( (1 - (pfrequencySub/pfrequency) ) * (ic[ic['terms'] == c]['frequency']/Nsum) ).values[0]) , ]
         #endfor
     #endfor
     '''
