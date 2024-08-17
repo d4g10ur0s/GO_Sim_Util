@@ -282,16 +282,22 @@ def main():
     # 5. get leaves - parents matrix
     W_ll = W.loc[list(terms)][ic['terms'].tolist()]
     # 6. Get leaves hosted similarity matrix
-    HSM = pd.DataFrame(0, index=ic['terms'].values.tolist(), columns=ic['terms'].values.tolist(), dtype=np.float64)
-    tcounter=0
-    G=ont.get_graph()
-    for i in ic['terms'].values.tolist() :
-        for j in ic['terms'].values.tolist() :
-            tcounter+=1
-            icu.progressBar(tcounter , len(ic['terms'].values.tolist())**2)
-            HSM.loc[i,j] = icu.simResnikMICA(i,j,ont,ic,G=G)
+    HSM = None
+    if os.path.exists('/home/d4gl0s/diploma/Experiment/Datasets/HSM.csv'):
+        HSM = pd.read_csv('/home/d4gl0s/diploma/Experiment/Datasets/HSM.csv')
+        HSM.index=ic['terms'].values.tolist()
+    else:
+        HSM = pd.DataFrame(0, index=ic['terms'].values.tolist(), columns=ic['terms'].values.tolist(), dtype=np.float64)
+        tcounter=0
+        G=ont.get_graph()
+        for i in ic['terms'].values.tolist() :
+            for j in ic['terms'].values.tolist() :
+                tcounter+=1
+                icu.progressBar(tcounter , len(ic['terms'].values.tolist())**2)
+                HSM.loc[i,j] = icu.simResnikMICA(i,j,ont,ic,G=G)
+            #endfor
         #endfor
-    #endfor
+        HSM.to_csv('/home/d4gl0s/diploma/Experiment/Datasets/HSM.csv')
     '''
     print(HSM)
     has_nan = HSM.isnull().values.any()
@@ -301,9 +307,8 @@ def main():
     has_nan = W.isnull().values.any()
     print(has_nan)
     '''
-    #HSM.to_csv()
-    print(W_ll.transpose() * HSM.loc[terms][terms])
-    RWC = W_ll.transpose() * HSM.loc[terms][terms] * W_ll
+    print(W.loc[ic['terms'].tolist()][list(terms)].dot(HSM.loc[terms][terms]))
+    RWC = (W.loc[ic['terms'].tolist()][list(terms)].dot(HSM.loc[terms][terms])).dot(W.loc[list(terms)][ic['terms'].tolist()])
     print(RWC)
     has_nan = RWC.isnull().values.any()
     print(has_nan)
