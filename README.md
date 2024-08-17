@@ -99,6 +99,14 @@ $$
 
 ### 1. Resnik Semantic Similarity
 
+### 2. Jiang & Conrath Semantic Similarity
+
+### 3. Lin Semantic Similarity
+
+### 4. Relevance Semantic Similarity
+
+### 5. SimIC
+
 ---
 
 ## Hybrid Methods 
