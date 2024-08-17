@@ -28,10 +28,10 @@ def main():
     # create ontology
     print('Creating Ontology from file .')
     ont = ob.OntologyFactory().create(obo_path)
-    G = ont.get_graph()
+    G = ont.get_graph().to_undirected()# graph must be undirected
     node2vec = Node2Vec(G, dimensions=64, walk_length=30, num_walks=200, workers=2)
     print('Training')
-    model = node2vec.fit(window=10, min_count=1, batch_words=4)
+    model = node2vec.fit(window=10, min_count=1, batch_words=10)
     model.wv.most_similar('GO:1990462')
 #
 #
