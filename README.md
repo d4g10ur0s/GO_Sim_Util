@@ -92,3 +92,21 @@ $$
 - Implementation : ./EdgeBasedSimilarity/edgeBasedMethods.py
 
 #### 4.1 Between Term Similarity
+
+---
+
+## Information Content Methods 
+
+### 1. Resnik Semantic Similarity
+
+---
+
+## Hybrid Methods 
+
+### 1. Integrated Semantic Similarity
+
+---
+
+## Graph Embedding Methods 
+
+### 1. go2vec
