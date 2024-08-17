@@ -105,6 +105,9 @@ $$
 
 ### 1. Integrated Semantic Similarity
 
+
+### 2. Hybrid Relative Specificity Similarity
+
 ---
 
 ## Graph Embedding Methods 
