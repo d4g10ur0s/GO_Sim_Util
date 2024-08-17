@@ -37,6 +37,21 @@ def progressBar(count_value, total, suffix=''):
 #
 #
 #
+def getAllParents(t , ont):
+    tparents = ont.parents(t)
+    parents = tparents
+    while len(tparents)>0:
+        temp = []
+        for p in tparents :
+            temp+=ont.parents(p)
+        #endfor
+        tparents=temp
+        parents+=tparents
+    #endwhile
+    return parents
+#
+#
+#
 def calcICT(terms, ont):
     # 0. get roots
     rootNodes={}
@@ -254,12 +269,47 @@ def frequencyANDprobability(geneData , ont):
 #
 #
 #
-def simResnik(t1, t2 , ont , df):
+def l_MICA(t1 , t2 , ont , ic):
+    # 1. find all parents
+    parents_1 = getAllParents(t1 , ont)
+    parents_2 = getAllParents(t2 , ont)
+    # 2. find all common parents
+    commonParents = set(parents_1)&set(parents_2)
+    if len(commonParents)==0:
+        return 0
+    commonParentsIC = ic[ic['terms'].isin(commonParents)]['IC']
+    return commonParentsIC.max()
+#
+#
+#
+def simResnikMICA(t1, t2 , ont , df, G=None):
+    if t1==t2:
+        return 1
+    # 0. get roots
+    '''
+    root1 ,namespace1 = gu.findRoot(t1, ont)
+    root2 ,namespace2 = gu.findRoot(t2, ont)
+    if not root1==root2 :
+        print('No common root .')
+        return 0
+    '''
+    mica = l_MICA(t1 , t2 , ont , df)
+    return mica
+#
+#
+#
+def simResnik(t1, t2 , ont , df, G=None):
+    if G == None:
+        G=ont.get_graph()
+    if t1==t2:
+        return [None , 1]
     # 0. get roots
     root1 ,namespace1 = gu.findRoot(t1, ont)
     root2 ,namespace2 = gu.findRoot(t2, ont)
-    anc1 = gu.allAncestors(t1 , ont)
-    anc2 = gu.allAncestors(t2 , ont)
+    if not root1==root2 :
+        return [None , 0]
+    anc1 = gu.allAncestors(t1 , ont , G=G)
+    anc2 = gu.allAncestors(t2 , ont , G=G)
     ancIntersection = set(anc1[1])&set(anc2[1])
     if len(ancIntersection)<1:
         return [None, 0]
@@ -272,8 +322,8 @@ def simResnik(t1, t2 , ont , df):
                 anc = p
             #endif
         #endfor
-        print('*'*25)
-        print(f'Term {t1} , {t2} Resnik similarity given by common ancestor {anc} is : {pic}')
+        #print('*'*25)
+        #print(f'Term {t1} , {t2} Resnik similarity given by common ancestor {anc} is : {pic}')
         return [anc, pic]
     #endif
 #

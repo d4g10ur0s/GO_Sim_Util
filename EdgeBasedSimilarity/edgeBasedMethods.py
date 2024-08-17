@@ -5,7 +5,9 @@ import ontobio as ob
 import networkx as nx
 # custom modules
 from Parsing import graphUtilities as gu
-
+#
+#
+#
 def getTValues(t , root , ont):
     # 1. get sub graph with all parents
     anc = gu.allAncestors(t,root,ont)
