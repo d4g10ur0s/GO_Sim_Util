@@ -16,6 +16,7 @@ import dask
 # custom modules
 from EdgeBasedSimilarity import edgeBasedMethods as ebm
 from InformationContentSimilarity import informationContentUtility as icu
+from Parsing import graphUtilities as gu
 #
 #
 #
@@ -136,7 +137,7 @@ def integrated_similarity_measure(lterms ,ic , ont):
 #
 #
 #
-def hybridRSS(t1, t2 , ont, G=None):
+def hybridRSS(t1, t2 , ont, ic, G=None):
     if G==None:
         G=ont.get_graph()
     #endif
@@ -156,7 +157,6 @@ def hybridRSS(t1, t2 , ont, G=None):
         #endif
     #endfor
     alpha = ic[ic['terms']==mica]['IC'].values[0]
-    print(f'Alpha : {alpha}')
     # 2. find MIL
     print('Calculating beta')
     dist_1 , n1 = gu.findAllChildrenInGraph(t1 , ont)
@@ -166,35 +166,43 @@ def hybridRSS(t1, t2 , ont, G=None):
         beta=0
     elif n1==0 :
         # get t2's mil
-        leaves_2 = dist_2[list(dist_2.keys())[-1]]
+        index_2 = list(dist_2.keys())[-1]
+        leaves_2 = dist_2[index_2]
         mil_2 = ic[ic['terms'].isin(leaves_2)]['IC'].max()
-        beta = ((ic[ic['terms']==t2]['IC'] - mil_2)/2).values[0]
-        print(f'Beta : {beta} , n1 = 0')
+        if np.isnan(mil_2) :# some leaves do not exist , because of handling subontology
+            beta=0
+        else:
+            beta = ((ic[ic['terms']==t2]['IC'] - mil_2)/2).values[0]
     elif n2==0 :
         # get t1's mil
-        leaves_1 = dist_1[list(dist_1.keys())[-1]]
+        index_1 = list(dist_1.keys())[-1]
+        leaves_1 = dist_1[index_1]
         mil_1 = ic[ic['terms'].isin(leaves_1)]['IC'].max()
-        beta = ((ic[ic['terms']==t1]['IC'] - mil_1)/2).values[0]
-        print(f'Beta : {beta} , n2 = 0')
+        if np.isnan(mil_1) :# some leaves do not exist , because of handling subontology
+            beta=0
+        else:
+            beta = ((ic[ic['terms']==t1]['IC'] - mil_1)/2).values[0]
     else:
         # get t1's mil
         index_1 = list(dist_1.keys())[-1]
-        print(index_1)
         leaves_1 = dist_1[index_1]
         mil_1 = ic[ic['terms'].isin(leaves_1)]['IC'].max()
+        if np.isnan(mil_1) :# some leaves do not exist , because of handling subontology
+            mil_1=0
         # get t2's mil
-        leaves_2 = dist_2[list(dist_2.keys())[-1]]
+        index_2 = list(dist_2.keys())[-1]
+        leaves_2 = dist_2[index_2]
         mil_2 = ic[ic['terms'].isin(leaves_2)]['IC'].max()
+        if np.isnan(mil_2):# some leaves do not exist , because of handling subontology
+            mil_2=0
         # calculate beta
         beta = (((ic[ic['terms']==t1]['IC'] - mil_1)+(ic[ic['terms']==t2]['IC'] - mil_2))/2).values[0]
-    print(f'Beta : {beta}')
     # 3. calculate relevant distance from MICA
     print('Calculating gamma')
     G = ont.get_graph()
     path_1 , rdist_1 = ebm.findMinimumPath(mica , t1 , G)
     path_2 , rdist_2 = ebm.findMinimumPath(mica , t2 , G)
     gamma = rdist_1 + rdist_2
-    print(f'Gamma : {gamma}')
     sim_HRSS = ( 1/(1+gamma) ) * ( alpha/(alpha + beta) )
-    print(sim_HRSS)
+    print(f'HRSS of terms {t1} , {t2} : {sim_HRSS}')
     return sim_HRSS

@@ -5,6 +5,8 @@ import ontobio as ob
 import networkx as nx
 # custom modules
 from Parsing import graphUtilities as gu
+from Parsing import parsing as pu
+from InformationContentSimilarity import informationContentUtility as icu
 #
 #
 #
@@ -248,45 +250,40 @@ def minimumPathLength(t1 , t2):
     #endfor
     return dist_1 + dist_2
 
-def simRada(genesID, genesData , ancestors):
+def simRada(geneData, ont):
+    G = ont.get_graph()
     '''
     1. for every possible combination of nodes find the minimum path between them .
     2. sum all the distances and divide by product of number of elements of each set .
     '''
-    terms = list(ancestors.keys())
-    simRada = {}
-    for i in genesID:
-        if not (i in list(simRada.keys())):
-            simRada[i] = {}
-        for j in genesID:
-            if not(j in list(simRada.keys())):
-                simRada[j] = {}
-            if not(j in list(simRada[i].keys())):
-                simRada[i][j] = 0
-            else :
-                #similarity is already in
+    # 1. extract all terms from gene data
+    terms = pu.extractTermsFromGenes(geneData)
+    # 2. for each term get all of its ancestors
+    termDict = {}
+    counter=0
+    for t in terms :
+        counter+=1
+        icu.progressBar(counter, len(terms))
+        anc = gu.allAncestors(t , ont , G)
+        termDict[t] = anc
+    #endfor
+    # 3. create a dataframe full of 0s
+    simRada = pd.DataFrame(0, index=terms, columns=terms, dtype=np.float64)
+    counter=0
+    for t1 in terms :
+        for t2 in terms:
+            counter+=1
+            icu.progressBar(counter, len(terms)**2)
+            if t1==t2 :# trivial similarity t1,t2 are the same term
+                simRada.loc[t1 ,t2]=1
                 continue
-            print('-'*20)
-            # get genes
-            g1=genesData[i]
-            tset1 = [t[0] for t in g1]
-            g2=genesData[j]
-            tset2 = [t[0] for t in g2]
-            dists = []
-            normSet = []
-            for t1 in tset1:
-                for t2 in tset2:
-                    normSet = [ancestors[t1][0][i] for i in ancestors[t1][0].keys()] + [ancestors[t2][0][i] for i in ancestors[t2][0].keys()]
-                    print(str(normSet))
-                    mPath=minimumPathLength(ancestors[t1],ancestors[t2])
-                    dists.append(mPath)
-                #endfor
-            #endfor
-            score = sum(dists)/(len(tset1)*len(tset2))
-            print(f'Overall score of {i} and {j} : {score}')
-            simRada[i][j] = score
-            simRada[j][i] = score
-            print('-'*20)
+            #endif
+            dist , lca = lowest_common_ancestor( (termDict[t1][0],termDict[t1][2]) , (termDict[t2][0],termDict[t2][2]) )
+            simRada.loc[t1 , t2] = dist
         #endfor
     #endfor
-    return simRada
+    # 4. save similarity
+    simRada.to_csv(os.getcwd()+'/Datasets/simRada.csv')
+#
+#
+#

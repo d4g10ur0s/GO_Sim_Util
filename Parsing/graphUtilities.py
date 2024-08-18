@@ -60,18 +60,6 @@ def findAllChildrenInGraph(t , ont):
 #
 #
 #
-def extractTermsFromGenes(genes):
-    terms = []
-    for g in genes:
-        gene = genes[g]
-        for tset in gene :
-            terms.append(tset[0])
-        #endfor
-    #endfor
-    return list(set(terms))
-#
-#
-#
 def read_json_file(file_path):
   """Reads a JSON file and returns its contents as a Python object.
 
@@ -230,10 +218,11 @@ def main():
     ic.columns=['terms','frequency','probability','IC']
     # 0. choose two random terms
     G = ont.get_graph()
-    for i in range(100):
+    for i in range(250):
+        icu.progressBar(i, 251)
         t1 = random.choice(terms)
         t2 = random.choice(terms)
-        hsu.hybridRSS(t1, t2 , ont , G)
+        hsu.hybridRSS(t1, t2 , ont , ic , G)
     #endfor
 
 

@@ -12,6 +12,18 @@ import dask
 #
 #
 #
+def extractTermsFromGenes(genes):
+    terms = []
+    for g in genes:
+        gene = genes[g]
+        for tset in gene :
+            terms.append(tset[0])
+        #endfor
+    #endfor
+    return list(set(terms))
+#
+#
+#
 def save_to_json(gene_dict, file_path):
     '''
     Just save a file in json format
@@ -53,34 +65,9 @@ def parseGAF(ga_path):
                     print(f'Terms processed : {counter}')
         #endwhile
         return geneDict
-
-'''
-def retPath(ont ,G , root , n ):
-    paths = list(nx.all_simple_paths(G, root, n))
-    longest = len(max(paths, key=lambda p: len(p)))
-    return {'id':n,
-            'label': ont.label(n),
-            'pathcount': len(paths),
-            'longest': longest}
-
-def get_pathstats(ont ,G , root , nodes):
-    """
-    for any given node, return a table row with stats
-    """
-    # parallel programming client
-    #cluster = LocalCluster(processes=False, threads_per_worker=2)
-    #client = Client(cluster)
-    items = []
-    counter=0
-    for n in nodes:
-        counter+=1
-        items.append(retPath(ont ,G , root , n))
-        if counter%10 == 0:
-            print(f'Terms processed : {counter}')
-    #progress(futures)
-    return items
-'''
-
+#
+#
+#
 def main():
     if len(sys.argv) != 3:
         print("Usage: python script.py <obo_file_path> <ga_file_path>")
