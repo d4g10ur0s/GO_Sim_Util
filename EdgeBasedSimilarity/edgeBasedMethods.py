@@ -166,8 +166,9 @@ def geneSemanticValue(g1 , g2 , gene1 , gene2 , ont):
 #
 #
 #
-def averageLengthToLCA(t1 , t2 , lca , ont):
-    G=ont.get_graph()
+def averageLengthToLCA(t1 , t2 , lca , ont, G=None):
+    if G==None :
+        G=ont.get_graph()
     path1 = list(nx.all_simple_paths(G, lca, t1))
     path2 = list(nx.all_simple_paths(G, lca, t2))
     return sum([len(i) for i in path1 + path2])/len(path1+path2)
@@ -193,21 +194,42 @@ def lowest_common_ancestor(t1, t2):
 #
 #
 #
-def simpleWeightedDistance(t1 , t2 , root , anc1 , anc2 , ont):
-    # 1. find lowest common ancestor
-    lcaDist , lca = lowest_common_ancestor(anc1,anc2)
-    # 2. if they are in the same namespace
-    if not lca==None :
-        print('-'*20)
-        print(f'LCA : {lca[0]}')
-        # 3. find lca's maximum path to root
-        dist = gu.allAncestors(lca[0], root , ont)
-        print(f'All ancestors : {str(dist)}')
-        print(f'Distance from root : {sum([.815,] + [.815**(i+1) for i in range(1,len(dist.keys()))])}')
-        avgL = averageLengthToLCA(t1,t2,lca[0],ont)
-        print(f'Average path length : {avgL}')
-        normalizationFactor = (avgL + sum([.815,] + [.815**(i+1) for i in range(1,len(dist.keys()))]))/avgL
-        print('-'*20)
+def simpleWeightedDistance(geneData , ont):
+    G = ont.get_graph()
+    # 1. extract all terms from gene data
+    terms = pu.extractTermsFromGenes(geneData)
+    # 2. for each term get all of its ancestors
+    termDict = {}
+    counter=0
+    for t in terms :
+        counter+=1
+        icu.progressBar(counter, len(terms))
+        anc = gu.allAncestors(t , ont , G)
+        termDict[t] = anc
+    #endfor
+    simSimpleWeights = pd.DataFrame(0, index=terms, columns=terms, dtype=np.float64)
+    counter=0
+    for t1 in terms :
+        for t2 in terms:
+            counter+=1
+            icu.progressBar(counter, len(terms)**2)
+            if t1==t2 :# trivial similarity t1,t2 are the same term
+                simRada.loc[t1 ,t2]=1
+                continue
+            #endif
+            dist , lca = lowest_common_ancestor( (termDict[t1][0],termDict[t1][2]) , (termDict[t2][0],termDict[t2][2]) )
+            if not lca==None :
+                dist , anc , namespace = gu.allAncestors(lca[0], ont)
+                avgL = averageLengthToLCA(t1,t2,lca[0],ont,G)
+                simSimpleWeights.loc[t1 , t2] = (avgL + sum([.815,] + [.815**(i+1) for i in range(1,len(dist.keys()))]))/avgL
+            else:
+                simSimpleWeights.loc[t1 , t2] = 0
+            #endif
+        #endfor
+    #endfor
+    # 4. save similarity
+    print(simSimpleWeights)
+    simSimpleWeights.to_csv(os.getcwd()+'/Datasets/simSimpleWeights.csv')
 #
 #
 #
@@ -249,7 +271,9 @@ def minimumPathLength(t1 , t2):
         #endfor
     #endfor
     return dist_1 + dist_2
-
+#
+#
+#
 def simRada(geneData, ont):
     G = ont.get_graph()
     '''
@@ -283,6 +307,7 @@ def simRada(geneData, ont):
         #endfor
     #endfor
     # 4. save similarity
+    print(simRada)
     simRada.to_csv(os.getcwd()+'/Datasets/simRada.csv')
 #
 #

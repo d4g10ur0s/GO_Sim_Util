@@ -35,6 +35,8 @@ def edgeBasedMethodsMenu(geneData, ont):
     #endwhile
     if choice==1 :
         ebm.simRada(geneData, ont)
+    elif choice==2:
+        ebm.simpleWeightedDistance(geneData , ont)
 #
 #
 #
