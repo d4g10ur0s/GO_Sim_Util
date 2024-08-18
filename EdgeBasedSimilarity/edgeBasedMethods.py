@@ -221,7 +221,7 @@ def findMinimumPath(t1, t2 ,G):
             path=p
         #endif
     #endfor
-    return p,dist
+    return path,dist
 #
 #
 #

@@ -58,7 +58,7 @@ def getTransitionProb(ic, ont):
 #
 #
 #
-def integrated_similarity_measure(ic , ont):
+def integrated_similarity_measure(lterms ,ic , ont):
     P = None
     if os.path.exists('/home/d4gl0s/diploma/Experiment/Datasets/transitionProb.csv'):
         P = pd.read_csv('/home/d4gl0s/diploma/Experiment/Datasets/transitionProb.csv')
@@ -111,7 +111,7 @@ def integrated_similarity_measure(ic , ont):
     #endwhile
     W=W_star
     # 5. get leaves - parents matrix
-    W_ll = W.loc[list(terms)][ic['terms'].tolist()]
+    W_ll = W.loc[list(lterms)][ic['terms'].tolist()]
     # 6. Get leaves hosted similarity matrix
     HSM = None
     if os.path.exists('/home/d4gl0s/diploma/Experiment/Datasets/HSM.csv'):
@@ -130,6 +130,71 @@ def integrated_similarity_measure(ic , ont):
         #endfor
         HSM.to_csv('/home/d4gl0s/diploma/Experiment/Datasets/HSM.csv')
     #endif
-    RWC = (W.loc[ic['terms'].tolist()][list(terms)].dot(HSM.loc[terms][terms])).dot(W.loc[list(terms)][ic['terms'].tolist()])
-    ICM = .5 * (RWC + HSM)
-    return
+    RWC = (W.loc[ic['terms'].tolist()][list(lterms)].dot(HSM.loc[lterms][lterms])).dot(W.loc[list(lterms)][ic['terms'].tolist()])
+    ISM = .5 * (RWC + HSM)
+    return ISM
+#
+#
+#
+def hybridRSS(t1, t2 , ont, G=None):
+    if G==None:
+        G=ont.get_graph()
+    #endif
+    # 1. find MICA
+    print('Calculating alpha')
+    dists_1 , anc1 , namespace1 = gu.allAncestors(t1 , ont , G=None)
+    dists_2 , anc2 , namespace2 = gu.allAncestors(t1 , ont , G=None)
+    # 1.2 get all ancestors
+    commonAnc = set(anc1)&set(anc2)
+    # 1.3 find the MOST INFORMATIVE
+    mica = None
+    for a in commonAnc :
+        if mica==None :
+            mica=a
+        elif ic[ic['terms']==mica]['IC'].values[0]<ic[ic['terms']==a]['IC'].values[0] :
+            mica=a
+        #endif
+    #endfor
+    alpha = ic[ic['terms']==mica]['IC'].values[0]
+    print(f'Alpha : {alpha}')
+    # 2. find MIL
+    print('Calculating beta')
+    dist_1 , n1 = gu.findAllChildrenInGraph(t1 , ont)
+    dist_2 , n2 = gu.findAllChildrenInGraph(t2 , ont)
+    beta = None
+    if n1==0 and n2==0 :
+        beta=0
+    elif n1==0 :
+        # get t2's mil
+        leaves_2 = dist_2[list(dist_2.keys())[-1]]
+        mil_2 = ic[ic['terms'].isin(leaves_2)]['IC'].max()
+        beta = ((ic[ic['terms']==t2]['IC'] - mil_2)/2).values[0]
+        print(f'Beta : {beta} , n1 = 0')
+    elif n2==0 :
+        # get t1's mil
+        leaves_1 = dist_1[list(dist_1.keys())[-1]]
+        mil_1 = ic[ic['terms'].isin(leaves_1)]['IC'].max()
+        beta = ((ic[ic['terms']==t1]['IC'] - mil_1)/2).values[0]
+        print(f'Beta : {beta} , n2 = 0')
+    else:
+        # get t1's mil
+        index_1 = list(dist_1.keys())[-1]
+        print(index_1)
+        leaves_1 = dist_1[index_1]
+        mil_1 = ic[ic['terms'].isin(leaves_1)]['IC'].max()
+        # get t2's mil
+        leaves_2 = dist_2[list(dist_2.keys())[-1]]
+        mil_2 = ic[ic['terms'].isin(leaves_2)]['IC'].max()
+        # calculate beta
+        beta = (((ic[ic['terms']==t1]['IC'] - mil_1)+(ic[ic['terms']==t2]['IC'] - mil_2))/2).values[0]
+    print(f'Beta : {beta}')
+    # 3. calculate relevant distance from MICA
+    print('Calculating gamma')
+    G = ont.get_graph()
+    path_1 , rdist_1 = ebm.findMinimumPath(mica , t1 , G)
+    path_2 , rdist_2 = ebm.findMinimumPath(mica , t2 , G)
+    gamma = rdist_1 + rdist_2
+    print(f'Gamma : {gamma}')
+    sim_HRSS = ( 1/(1+gamma) ) * ( alpha/(alpha + beta) )
+    print(sim_HRSS)
+    return sim_HRSS

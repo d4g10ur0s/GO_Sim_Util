@@ -228,8 +228,14 @@ def main():
         ic.to_csv('/home/d4gl0s/diploma/Experiment/Datasets/informationContent.csv')
     ic = pd.read_csv('/home/d4gl0s/diploma/Experiment/Datasets/informationContent.csv')
     ic.columns=['terms','frequency','probability','IC']
-    hsu.integrated_similarity_measure(ic , ont)
-    
+    # 0. choose two random terms
+    G = ont.get_graph()
+    for i in range(100):
+        t1 = random.choice(terms)
+        t2 = random.choice(terms)
+        hsu.hybridRSS(t1, t2 , ont , G)
+    #endfor
+
 
 if __name__ == "__main__":
     main()
