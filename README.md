@@ -116,6 +116,28 @@ $$
 
 ### 2. Hybrid Relative Specificity Similarity
 
+- Source : [Improving the Measurement of Semantic Similarity between Gene Ontology Terms and Gene Products: Insights from an Edge- and IC-Based Hybrid Method](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0066745)
+- 
+
+#### 2.1 Between Term Similarity
+
+- Find Most Informative Common Ancestor - MICA .
+- Calculate Information Content Distance from root .
+
+$$
+\alpha_{IC} = -\ln{(p_{IC}(MICA)}
+$$
+
+- Find Most Informative Leaf for each term .
+- Calculate Average Information Content Distance from each MIL and term .
+
+$$
+\beta_{IC} = \frac{-\ln{(p_{IC}(t_1))} + \ln{(p_{IC}(MIL_1))} - \ln{(p_{IC}(t_2))} + \ln{(p_{IC}(MIL_2))} }{2}
+$$
+
+- Find Minimum Path from each term to MICA .
+- 
+
 ---
 
 ## Graph Embedding Methods 
