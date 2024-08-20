@@ -37,6 +37,8 @@ def edgeBasedMethodsMenu(geneData, ont):
         ebm.simRada(geneData, ont)
     elif choice==2:
         ebm.simpleWeightedDistance(geneData , ont)
+    elif choice==3:
+        ebm.semanticValueSimilarity(geneData , ont)
 #
 #
 #

@@ -1,5 +1,8 @@
+import os
+import sys
 # data analysis modules
 import numpy as np
+import pandas as pd
 # ontology modules
 import ontobio as ob
 import networkx as nx
@@ -79,64 +82,6 @@ def shortestSemanticDifferentiationDistance(t1 , t2 , ont):
 #
 #
 #
-def getSvalue(t,ont,rootNodes,namespace):
-    # 2. construct its graph
-    node = ont.node(t)
-    root = None
-    for i in node['meta']['basicPropertyValues']:
-        if i['val'] in namespace :
-            root = rootNodes[i['val']]
-    graph = gu.allAncestors(t,root,ont)
-    # 3. calculate all semantic values for the graph
-    sval = {}
-    weightFactor = .815
-    # starting node's semantic value is 1
-    sval[t] = 1
-    for i in graph :
-        lterms = graph[i]
-        # semantic value depends on children
-        for p in lterms :
-            # if first layer , then term's child is the term under process
-            if i==1 :
-                sval[p] = 1 * weightFactor
-            elif len(lterms)>0 :
-                # 3.1 get node's children in ontology graph
-                children = ont.children(p)
-                # 3.2 get the intersection with all the previous layers
-                player = graph[i-1]
-                childIntersection = set(sval.keys())&set(children)
-                sval[p]=0
-                for c in childIntersection:
-                    # 3.3 find the maximum svalue
-                    if sval[p]<sval[c] * weightFactor:
-                        sval[p] = sval[c] * weightFactor
-                    #endif
-                #endfor
-            #endif
-        #endfor
-    #endfor
-    #print(f'Term {t} Semantic Value : {str(sum([sval[i] for i in sval.keys()]))}')
-    return sval , sum([sval[i] for i in sval.keys()])
-#
-#
-#
-def pairSemanticValue(t1, t2 , ont):
-    rootNodes={}
-    namespace = []
-    for r in ont.get_roots():
-        rootNodes[str(ont.node(r)['label'])] = r
-        namespace.append(str(ont.node(r)['label']))
-    sval1 , semanticValue1 = getSvalue(t1 , ont , rootNodes , namespace)
-    sval2 , semanticValue2 = getSvalue(t2 , ont , rootNodes , namespace)
-    # Calculate semantic similarity of t1 , t2
-    inTerms = set(sval1.keys()) & set(sval2.keys())
-    svalPair = sum([sval1[i]+sval2[i] for i in inTerms])
-    pairSimilarity = svalPair/(semanticValue1+semanticValue2)
-    print(f'Similarity of {t1} , {t2} : {pairSimilarity}')
-    return pairSimilarity
-#
-#
-#
 def geneSemanticValue(g1 , g2 , gene1 , gene2 , ont):
     # 1. for each possible term pair get the maximum similarity
     sim = 0
@@ -194,45 +139,6 @@ def lowest_common_ancestor(t1, t2):
 #
 #
 #
-def simpleWeightedDistance(geneData , ont):
-    G = ont.get_graph()
-    # 1. extract all terms from gene data
-    terms = pu.extractTermsFromGenes(geneData)
-    # 2. for each term get all of its ancestors
-    termDict = {}
-    counter=0
-    for t in terms :
-        counter+=1
-        icu.progressBar(counter, len(terms))
-        anc = gu.allAncestors(t , ont , G)
-        termDict[t] = anc
-    #endfor
-    simSimpleWeights = pd.DataFrame(0, index=terms, columns=terms, dtype=np.float64)
-    counter=0
-    for t1 in terms :
-        for t2 in terms:
-            counter+=1
-            icu.progressBar(counter, len(terms)**2)
-            if t1==t2 :# trivial similarity t1,t2 are the same term
-                simRada.loc[t1 ,t2]=1
-                continue
-            #endif
-            dist , lca = lowest_common_ancestor( (termDict[t1][0],termDict[t1][2]) , (termDict[t2][0],termDict[t2][2]) )
-            if not lca==None :
-                dist , anc , namespace = gu.allAncestors(lca[0], ont)
-                avgL = averageLengthToLCA(t1,t2,lca[0],ont,G)
-                simSimpleWeights.loc[t1 , t2] = (avgL + sum([.815,] + [.815**(i+1) for i in range(1,len(dist.keys()))]))/avgL
-            else:
-                simSimpleWeights.loc[t1 , t2] = 0
-            #endif
-        #endfor
-    #endfor
-    # 4. save similarity
-    print(simSimpleWeights)
-    simSimpleWeights.to_csv(os.getcwd()+'/Datasets/simSimpleWeights.csv')
-#
-#
-#
 def findMinimumPath(t1, t2 ,G):
     # 1. List all simple paths
     paths = list(nx.all_simple_paths(G ,t1 ,t2))
@@ -274,6 +180,130 @@ def minimumPathLength(t1 , t2):
 #
 #
 #
+def pairSemanticValue(t1 , t2):
+    semanticValue1 = sum([t1[t] for t in t1.keys()])
+    semanticValue2 = sum([t1[t] for t in t2.keys()])
+    # Calculate semantic similarity of t1 , t2
+    inTerms = set(t1.keys()) & set(t2.keys())
+    svalPair = sum([t1[i]+t2[i] for i in inTerms])
+    pairSimilarity = svalPair/(semanticValue1+semanticValue2)
+    return pairSimilarity
+#
+#
+#
+def getSvalue(term , tAnc , ont):
+    subgraph = tAnc[0]
+    # 1. calculate all semantic values for the graph
+    sval = {}
+    weightFactor = .815
+    sval[t]=1# 2.1 for term t S-Value calculation is trivial
+    # 2. calculate S-Values
+    for i in subgraph:# 2.2 for parent terms , S-Value depends on its children in subgraph
+        if i==1 :# 2.2.1 for layer 1 terms , S-Value calculation is trivial
+            for p in subgraph[i]:
+                sval[t]=1*weightFactor
+            #endfor
+            continue
+        #endif
+        # 2.2.2 for each child term , find the intersection with subgraph's nodes from previous layer
+        for p in subgraph[i]:
+            sval[p]=0
+            childrenIntersection = set(subgraph[i-1])&set(ont.children(p))
+            for c in list(childrenIntersection):
+                if sval[p]<sval[c]*weightFactor:# find the maximum
+                    sval[p]=sval[c]*weightFactor
+                #endif
+            #endfor
+        #endfor
+    #endfor
+    return sval
+#
+#
+#
+def semanticValueSimilarity(geneData , ont):
+    G = ont.get_graph()
+    # 1. extract all terms from gene data
+    terms = pu.extractTermsFromGenes(geneData)
+    # 2. for each term get its subgraph
+    termDict = {}
+    counter=0
+    print('Getting all ancestors for every term')
+    for t in terms :
+        counter+=1
+        icu.progressBar(counter, len(terms))
+        anc = gu.allAncestors(t , ont , G)
+        termDict[t] = anc
+    #endfor
+    # 3. for each subgraph calculate term's s-value
+    sval = {}
+    counter=0
+    print('Getting s-values for every term')
+    for t in termDict.keys():
+        counter+=1
+        icu.progressBar(counter, len(terms))
+        sval[t] = getSvalue(t , termDict[t] , ont)
+    #endfor
+    # 4. for each term pair calculate their semantic similarity
+    sValueSimilarity = pd.DataFrame(0, index=terms, columns=terms, dtype=np.float64)
+    print('Calculate term similarity between all term pairs')
+    for t2 in terms :
+        for t2 in terms :
+            if t1==t2 :# terms are the same term , trivial calculation of similarity
+                sValueSimilarity.loc[t1 ,t2]=1
+            elif not termDict[t1][2]==termDict[t2][2]:# terms are in different subontologies , trivial calculation of similarity
+                sValueSimilarity.loc[t1 ,t2]=0
+            else:
+                sValueSimilarity.loc[t1 ,t2]=pairSemanticValue(sval[t1] , sval[t2])
+            #endif
+        #endfor
+    #endfor
+    print(sValueSimilarity)
+    sValueSimilarity.to_csv(os.getcwd()+'/Datasets/sValueSimilarity.csv')
+#
+#
+#
+def simpleWeightedDistance(geneData , ont):
+    G = ont.get_graph()
+    # 1. extract all terms from gene data
+    terms = pu.extractTermsFromGenes(geneData)
+    # 2. for each term get all of its ancestors
+    termDict = {}
+    counter=0
+    for t in terms :
+        counter+=1
+        icu.progressBar(counter, len(terms))
+        anc = gu.allAncestors(t , ont , G)
+        termDict[t] = anc
+    #endfor
+    simSimpleWeights = pd.DataFrame(0, index=terms, columns=terms, dtype=np.float64)
+    counter=0
+    for t1 in terms :
+        for t2 in terms:
+            counter+=1
+            icu.progressBar(counter, len(terms)**2)
+            if t1==t2 :# trivial similarity t1,t2 are the same term
+                simSimpleWeights.loc[t1 ,t2]=1
+                continue
+            #endif
+            dist , lca = lowest_common_ancestor( (termDict[t1][0],termDict[t1][2]) , (termDict[t2][0],termDict[t2][2]) )
+            if not lca==None :
+                try :
+                    dist , anc , namespace = gu.allAncestors(lca[0], ont)
+                    avgL = averageLengthToLCA(t1,t2,lca[0],ont,G)
+                    simSimpleWeights.loc[t1 , t2] = (avgL + sum([.815,] + [.815**(i+1) for i in range(1,len(dist.keys()))]))/avgL
+                except KeyError :
+                    simSimpleWeights.loc[t1 , t2] = 0
+            else:
+                simSimpleWeights.loc[t1 , t2] = 0
+            #endif
+        #endfor
+    #endfor
+    # 4. save similarity
+    print(simSimpleWeights)
+    simSimpleWeights.to_csv(os.getcwd()+'/Datasets/simSimpleWeights.csv')
+#
+#
+#
 def simRada(geneData, ont):
     G = ont.get_graph()
     '''
@@ -292,23 +322,23 @@ def simRada(geneData, ont):
         termDict[t] = anc
     #endfor
     # 3. create a dataframe full of 0s
-    simRada = pd.DataFrame(0, index=terms, columns=terms, dtype=np.float64)
+    similarityRada = pd.DataFrame(0, index=terms, columns=terms, dtype=np.float64)
     counter=0
     for t1 in terms :
         for t2 in terms:
             counter+=1
             icu.progressBar(counter, len(terms)**2)
             if t1==t2 :# trivial similarity t1,t2 are the same term
-                simRada.loc[t1 ,t2]=1
+                similarityRada.loc[t1 ,t2]=1
                 continue
             #endif
             dist , lca = lowest_common_ancestor( (termDict[t1][0],termDict[t1][2]) , (termDict[t2][0],termDict[t2][2]) )
-            simRada.loc[t1 , t2] = dist
+            similarityRada.loc[t1 , t2] = dist
         #endfor
     #endfor
     # 4. save similarity
-    print(simRada)
-    simRada.to_csv(os.getcwd()+'/Datasets/simRada.csv')
+    print(similarityRada)
+    similarityRada.to_csv(os.getcwd()+'/Datasets/simRada.csv')
 #
 #
 #
