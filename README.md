@@ -70,20 +70,20 @@ $$
 #### 3.1 Between Term Similarity
 
 - Construct the subgraph for each term .
-- Calculate svalue using the formula :
+- Calculate svalue for a term in each subgraph using the formula :
   
 $$
-S_{t_i}(t_i) = \begin{cases}S_{t_i}(t_i) = 1 \\ S_t(t_i) = \max{\{w_e\cdot S_{t_i}(t_i')|t_i' \in childrenof(t_i)\}} \ if \ t \ \neq \ t_i\end{cases}
+S_{t}(t_i) = \begin{cases}S_{t}(t) = 1 \\ S_t(t_i) = \max{\{w_e\cdot S_{t}(t_i')|t_i' \in childrenof(t_i) \in N_t\}} \ if \ t \ \neq \ t_i\end{cases}
 $$
 
 - Calculate term similarity using the formulas :
 
 $$
-SV(t) = \sum_{t_i \in N_t}{S_t(t_i)}
+S_{GO}(t_1, t_2) = \frac{\sum_{t_i \in N_{t_1}\cap N_{t_2}}{(S_{t_1}(t_i) + S_{t_2}(t_i)}}{SV(t_1) + SV(t_2)}
 $$
 
 $$
-S_{GO}(t_1, t_2) = \frac{\sum_{t_i \in N_{t_1}\cap N_{t_2}}{(S_{t_1}(t_i) + S_{t_2}(t_i)}}{SV(t_1) + SV(t_2)}
+SV(t) = \sum_{t_i \in N_t}{S_t(t_i)}
 $$
 
 ### 4. Shortest Semantic Differentiation Distance - SSDD
