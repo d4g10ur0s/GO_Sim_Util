@@ -73,9 +73,7 @@ $$
 - Calculate svalue for a term in each subgraph using the formula :
   
 $$
-\begin{equation}
-S_{t}(t_i) = \begin{cases}S_{t}(t) = 1 \\ S_t(t_i) = \max{\{w_e\cdot S_{t}(t_i')|t_i' \in childrenof(t_i) \in N_t\}} \ if \ t \ \neq \ t_i\end{cases}
-\end{equation}
+S_{t}(t_i) = \begin{equation}\begin{cases}S_{t}(t) = 1 \\ S_t(t_i) = \max{\{w_e\cdot S_{t}(t_i')|t_i' \in childrenof(t_i) \in N_t\}} \ if \ t \ \neq \ t_i\end{cases}\end{equation}
 $$
 
 - Calculate term similarity using the formulas :
