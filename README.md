@@ -72,19 +72,23 @@ $
 - Construct the subgraph for each term .
 - Calculate svalue for a term in each subgraph using the formula :
   
-$
-S_{t}(t_i) = \begin{equation}\begin{cases}S_{t}(t) = 1 \\ S_t(t_i) = \max{\{w_e\cdot S_{t}(t_i')|t_i' \in childrenof(t_i) \in N_t\}} \ if \ t \ \neq \ t_i\end{cases}\end{equation}
-$
+$$
+S_{t}(t_i) = 
+\begin{equation}
+\begin{cases}S_{t}(t) = 1 \\
+S_t(t_i) = \max{\{w_e\cdot S_{t}(t_i')|t_i' \in childrenof(t_i) \in N_t\}} \ if \ t \ \neq \ t_i\end{cases}
+\end{equation}
+$$
 
 - Calculate term similarity using the formulas :
 
-$
+$$
 S_{GO}(t_1, t_2) = \frac{\sum_{t_i \in N_{t_1}\cap N_{t_2}}{(S_{t_1}(t_i) + S_{t_2}(t_i)}}{SV(t_1) + SV(t_2)}
-$
+$$
 
-$
+$$
 SV(t) = \sum_{t_i \in N_t}{S_t(t_i)}
-$
+$$
 
 ### 4. Shortest Semantic Differentiation Distance - SSDD
 
