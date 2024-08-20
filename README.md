@@ -54,9 +54,9 @@ Gene Ontology](https://www.tandfonline.com/doi/abs/10.1081/BIP-200025659)
 - Find the maximum distance of LCA from the root .
 - Use the formula from :
 
-$
+$$
 W_{path(t_1,t_2)} = \sum_{i=0}^{n}{(w)^i}
-$
+$$
 
 - w is a hyperparameter for weight . (.815)
 
@@ -69,8 +69,13 @@ $
 
 #### 3.1 Between Term Similarity
 
-- Construct the subgraph for each term .
-- Calculate svalue for a term in each subgraph using the formula :
+- Construct the subgraph for each term $t$ involving all of its ancestors $N_t$ in ontology graph .
+
+$$
+G_t = (t, N_t , E_t)
+$$
+
+- Calculate s-value for a term in each subgraph using the formula :
   
 $$
 S_{t}(t_i) = 
