@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 # data analysis modules
 import numpy as np
 import pandas as pd
@@ -196,7 +197,7 @@ def getSvalue(term , tAnc , ont):
     # 1. calculate all semantic values for the graph
     sval = {}
     weightFactor = .815
-    sval[t]=1# 2.1 for term t S-Value calculation is trivial
+    sval[term]=1# 2.1 for term t S-Value calculation is trivial
     # 2. calculate S-Values
     for i in subgraph:# 2.2 for parent terms , S-Value depends on its children in subgraph
         if i==1 :# 2.2.1 for layer 1 terms , S-Value calculation is trivial
@@ -226,14 +227,21 @@ def semanticValueSimilarity(geneData , ont):
     terms = pu.extractTermsFromGenes(geneData)
     # 2. for each term get its subgraph
     termDict = {}
-    counter=0
-    print('Getting all ancestors for every term')
-    for t in terms :
-        counter+=1
-        icu.progressBar(counter, len(terms))
-        anc = gu.allAncestors(t , ont , G)
-        termDict[t] = anc
-    #endfor
+    if os.path.exists(os.getcwd()+'/Datasets/allAncestors.json'):
+        with open(os.getcwd()+'/Datasets/allAncestors.json', "r") as f:# load file
+            termDict = json.load(f)
+    else:
+        counter=0
+        print('Getting all ancestors for every term')
+        for t in terms :
+            counter+=1
+            icu.progressBar(counter, len(terms))
+            anc = gu.allAncestors(t , ont , G)
+            termDict[t] = anc
+        #endfor
+        with open(os.getcwd()+'/Datasets/allAncestors.json', "w") as f:# save file
+            json.dump(termDict, f, indent=4)
+    #endif
     # 3. for each subgraph calculate term's s-value
     sval = {}
     counter=0
@@ -243,6 +251,8 @@ def semanticValueSimilarity(geneData , ont):
         icu.progressBar(counter, len(terms))
         sval[t] = getSvalue(t , termDict[t] , ont)
     #endfor
+    with open(os.getcwd()+'/Datasets/svalues.json', "w") as f:
+        json.dump(sval, f, indent=4)
     # 4. for each term pair calculate their semantic similarity
     sValueSimilarity = pd.DataFrame(0, index=terms, columns=terms, dtype=np.float64)
     print('Calculate term similarity between all term pairs')
