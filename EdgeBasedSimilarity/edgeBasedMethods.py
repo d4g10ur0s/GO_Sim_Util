@@ -183,40 +183,49 @@ def minimumPathLength(t1 , t2):
 #
 def pairSemanticValue(t1 , t2):
     semanticValue1 = sum([t1[t] for t in t1.keys()])
-    semanticValue2 = sum([t1[t] for t in t2.keys()])
+    semanticValue2 = sum([t2[t] for t in t2.keys()])
     # Calculate semantic similarity of t1 , t2
     inTerms = set(t1.keys()) & set(t2.keys())
-    svalPair = sum([t1[i]+t2[i] for i in inTerms])
+    svalPair=0
+    if not len(inTerms)==0:
+        svalPair = sum([t1[i]+t2[i] for i in inTerms])
+    #endif
     pairSimilarity = svalPair/(semanticValue1+semanticValue2)
     return pairSimilarity
 #
 #
 #
-def getSvalue(term , tAnc , ont):
-    subgraph = tAnc[0]
+def getSvalue(term , ont):
     # 1. calculate all semantic values for the graph
     sval = {}
     weightFactor = .815
     sval[term]=1# 2.1 for term t S-Value calculation is trivial
+    children = [term]
+    parents = ont.parents(term)
     # 2. calculate S-Values
-    for i in subgraph:# 2.2 for parent terms , S-Value depends on its children in subgraph
-        if i==1 :# 2.2.1 for layer 1 terms , S-Value calculation is trivial
-            for p in subgraph[i]:
-                sval[t]=1*weightFactor
-            #endfor
-            continue
-        #endif
-        # 2.2.2 for each child term , find the intersection with subgraph's nodes from previous layer
-        for p in subgraph[i]:
-            sval[p]=0
-            childrenIntersection = set(subgraph[i-1])&set(ont.children(p))
-            for c in list(childrenIntersection):
-                if sval[p]<sval[c]*weightFactor:# find the maximum
-                    sval[p]=sval[c]*weightFactor
+    while not(len(parents)==0):
+        print(f'Current number of parents : {len(parents)}')
+        # 2.1 get parents of parents
+        ochildren = []# children in subgraph
+        oparents = []
+        counter = len(parents)
+        for p in parents :
+            print(f'Number of parent processed : {counter}')
+            counter-=1
+            oparents+=list(ont.parents(p))# 2.2 get parents of p in subgraph
+            tchildren = set(children)&set(ont.children(p))# 2.2 get children of p in subgraph
+            maxSval=0
+            for c in tchildren :# children are already in sval
+                if sval[c]*weightFactor>maxSval*weightFactor:# 2.3 find maximum svalue
+                    maxSval=sval[c]*weightFactor
                 #endif
             #endfor
+            sval[p]=maxSval# 2.4 set svalue
+            ochildren+=list(tchildren)# update parents' children
         #endfor
-    #endfor
+        parents = list(set(oparents))# 2.5 set new parents
+        children = list(set(ochildren))# 2.5 set new children
+    #endwhile
     return sval
 #
 #
@@ -225,43 +234,24 @@ def semanticValueSimilarity(geneData , ont):
     G = ont.get_graph()
     # 1. extract all terms from gene data
     terms = pu.extractTermsFromGenes(geneData)
-    # 2. for each term get its subgraph
-    termDict = {}
-    if os.path.exists(os.getcwd()+'/Datasets/allAncestors.json'):
-        with open(os.getcwd()+'/Datasets/allAncestors.json', "r") as f:# load file
-            termDict = json.load(f)
-    else:
-        counter=0
-        print('Getting all ancestors for every term')
-        for t in terms :
-            counter+=1
-            icu.progressBar(counter, len(terms))
-            anc = gu.allAncestors(t , ont , G)
-            termDict[t] = anc
-        #endfor
-        with open(os.getcwd()+'/Datasets/allAncestors.json', "w") as f:# save file
-            json.dump(termDict, f, indent=4)
-    #endif
-    # 3. for each subgraph calculate term's s-value
+    # 2. for each subgraph calculate term's s-value
     sval = {}
     counter=0
     print('Getting s-values for every term')
-    for t in termDict.keys():
+    for t in terms:
         counter+=1
         icu.progressBar(counter, len(terms))
-        sval[t] = getSvalue(t , termDict[t] , ont)
+        sval[t] = getSvalue(t , ont)
     #endfor
     with open(os.getcwd()+'/Datasets/svalues.json', "w") as f:
         json.dump(sval, f, indent=4)
     # 4. for each term pair calculate their semantic similarity
     sValueSimilarity = pd.DataFrame(0, index=terms, columns=terms, dtype=np.float64)
     print('Calculate term similarity between all term pairs')
-    for t2 in terms :
+    for t1 in terms :
         for t2 in terms :
             if t1==t2 :# terms are the same term , trivial calculation of similarity
                 sValueSimilarity.loc[t1 ,t2]=1
-            elif not termDict[t1][2]==termDict[t2][2]:# terms are in different subontologies , trivial calculation of similarity
-                sValueSimilarity.loc[t1 ,t2]=0
             else:
                 sValueSimilarity.loc[t1 ,t2]=pairSemanticValue(sval[t1] , sval[t2])
             #endif
