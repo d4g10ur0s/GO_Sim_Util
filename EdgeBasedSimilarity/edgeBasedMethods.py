@@ -204,14 +204,10 @@ def getSvalue(term , ont):
     parents = ont.parents(term)
     # 2. calculate S-Values
     while not(len(parents)==0):
-        print(f'Current number of parents : {len(parents)}')
         # 2.1 get parents of parents
         ochildren = []# children in subgraph
         oparents = []
-        counter = len(parents)
         for p in parents :
-            print(f'Number of parent processed : {counter}')
-            counter-=1
             oparents+=list(ont.parents(p))# 2.2 get parents of p in subgraph
             tchildren = set(children)&set(ont.children(p))# 2.2 get children of p in subgraph
             maxSval=0
