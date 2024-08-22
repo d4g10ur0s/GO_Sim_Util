@@ -39,6 +39,8 @@ def edgeBasedMethodsMenu(geneData, ont):
         ebm.simpleWeightedDistance(geneData , ont)
     elif choice==3:
         ebm.semanticValueSimilarity(geneData , ont)
+    elif choice==4:
+        ebm.shortestSemanticDifferentiationDistance(geneData , ont)
 #
 #
 #

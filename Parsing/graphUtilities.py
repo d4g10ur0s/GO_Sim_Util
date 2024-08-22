@@ -142,49 +142,30 @@ def allAncestorsAllTerms(terms , ont):
 
     }
     '''
+    print('Finding all ancestors for all terms .')
     anc = {}
     counter=0
-    # 1. for each term
     for t in terms :
-        #dists = allAncestors(t)
-        dists = {}
-        # 2. get root term
-        root , namespace = findRoot(t,ont)
-        # 3.  get all paths from root to term
-        G = ont.get_graph()
-        paths = list(nx.all_simple_paths(G , root , t))
-        # 4. for each path get uncommon nodes only
-        a = set()
-        rootDist = 10e10
-        for p in paths:# 4.1 add minimum path from root to t
-            if len(p)<rootDist:
-                rootDist = len(p)
-            #endif
-            a = a|set(p)
-        #endfor
-        dists[rootDist] = [root]# 4.2 add minimum dist to root
-        # 5. exclude t and root
-        a.remove(t)
-        a.remove(root)
-        # 6. for each parent find the minimum path to t
-        for anc in a :
-            paths = list(nx.all_simple_paths(G , anc , t))
-            ancDist = 10e10
-            for p in paths : # 6.1 for each path
-                if len(p) < ancDist :# 6.2 find minimum
-                    ancDist=len(p)
-                #endif
+        counter+=1
+        icu.progressBar(counter, len(terms))
+        pdist = {}
+        dist = 1
+        parents=list(ont.parents(t))
+        while len(parents)>0:
+            pdist[dist]=parents
+            dist+=1
+            tparents=[]
+            for p in parents:
+                tparents+=list(ont.parents(p))
             #endfor
-            if ancDist in dists.keys():# 6.3 add dist with the correct form
-                dists[ancDist].append(anc)
-            else :
-                dists[ancDist] = [anc]
-            #endif
-        #endfor
-        anc[t] = (dists , list(a) , namespace)
+            parents=list(set(tparents))
+        #endwhile
+        anc[t]=pdist
     #endfor
     return anc
-
+#
+#
+#
 def main():
     if len(sys.argv) != 2:
         print("Usage: python script.py <obo_file_path> <ga_file_path>")

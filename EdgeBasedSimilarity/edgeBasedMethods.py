@@ -14,72 +14,44 @@ from InformationContentSimilarity import informationContentUtility as icu
 #
 #
 #
-def getTValues(t , root , ont):
-    # 1. get sub graph with all parents
-    anc = gu.allAncestors(t,root,ont)
-    # 2. for each parent calculate T-value
-    # 2.1 for each parent get all children till leaf nodes
-    nChildren = {}
-    for i in anc :
-        for p in anc[i]:
-            children , n = gu.findAllChildrenInGraph(p,ont)
-            nChildren[p]=n
+def getTValues(t , root , ont , tValues , G=None):
+    # 0. preprocessing steps
+    tValues[root]=1# 0.1 root has t-value 1
+    tchildren , tn = gu.findAllChildrenInGraph(t,ont)# 0.2 find number of descendants in ontology graph for term t
+    if G==None :
+        G=ont.get_graph()
+    #endif
+    # 1. find all ancestors to root term
+    pdist = {}
+    dist = 1
+    parents = ont.parents(t)
+    while len(parents)>0:
+        pdist[dist]=parents
+        dist+=1
+        tparents=[]
+        for p in parents:
+            tparents+=list(ont.parents(p))
         #endfor
-    #endfor
-    # 2.2 calculate T-values
-    tValues = {}
-    for i in list(anc.keys())[::-1]:# start from root
-        for p in anc[i]:
-            if p == root:
-                tValues[root]=1
-            else :# if not root
-                pp = ont.parents(p)# get parents of parent
-                omega = [tValues[o]*(nChildren[p]/nChildren[o]) for o in pp]# calculate omega using kids
-                # t-value is the average of parents' t-values multiplied by omega
-                tValues[p]=sum(omega)/len(omega)
+        parents=list(set(tparents))
+    #endwhile
+    # 2. go down the subgraph
+    while dist > 0:
+        dist-=1
+        for pterm in pdist[dist]:
+            if pterm in tValues.keys():
+                pass
+            else:
+                parents=ont.parents(pterm)# 2.1 get parents
+                val=0
+                for p in parents:# 2.2 calculate t-value
+                    pchildren , pn = gu.findAllChildrenInGraph(p,ont)# 2.3 find number of descendants in ontology graph for term p
+                    omega=tn/pn
+                    val+=omega*tValues[p]
                 #endfor
+                tValues[pterm]=val/len(parents)# 2.4 tvalue is the mean of summmation
             #endif
         #endfor
-    #endfor
-    # Do the same for t
-    # Add children for t
-    children , n = gu.findAllChildrenInGraph(t,ont)
-    nChildren[t]=n
-    # Calculate t's T-value
-    pp = ont.parents(t)# get parents of t
-    omega = [tValues[o]*(nChildren[t]/nChildren[o]) for o in pp]# calculate omega using kids
-    tValues[t]=sum(omega)/len(omega)
-    return tValues
-#
-#
-#
-def shortestSemanticDifferentiationDistance(t1 , t2 , ont):
-    # 1. find roots
-    root1 ,namespace1 = gu.findRoot(t1, ont)
-    root2 ,namespace2 = gu.findRoot(t2, ont)
-    # NO COMMON ROOT THE SIMILARITY IS 0
-    if not(root1==root2):
-        return 0
-    #endif
-    # 2. calculate T - Values based on root
-    tval1 = getTValues(t1, root1 , ont)
-    tval2 = getTValues(t2, root2 , ont)
-    # 3. get distances to all ancestors
-    anc1 = gu.allAncestors(t1 , ont)
-    anc2 = gu.allAncestors(t2 , ont)
-    # 4. find the minimum path
-    mpath = findMinimumPath(t1, t2, (anc1 , root1) , (anc2 , root2) ,ont)
-    sim = 0
-    if not mpath==None :# 5. if common ancestor exists
-        for node in mpath : # 6. add up ancestor's T-value
-            if node in tval1.keys():
-                sim+=tval1[node]
-            else:
-                sim+=tval2[node]
-        #endfor
-        return 1 - np.arctan(sim)/(np.pi/2) # 7. return semantic similarity
-    else :# 7. There is no common ancestor
-        return 0
+    #endwhile
 #
 #
 #
@@ -140,19 +112,26 @@ def lowest_common_ancestor(t1, t2):
 #
 #
 #
-def findMinimumPath(t1, t2 ,G):
-    # 1. List all simple paths
-    paths = list(nx.all_simple_paths(G ,t1 ,t2))
-    # 2. Find the minimum path
+def findMinimumPath(paths):
     dist = 10e10
     path = None
-    for p in paths :
+    for p in paths:
         if dist > len(p):
             dist=len(p)
             path=p
         #endif
     #endfor
     return path,dist
+def findMinimumPathLCA(t1, t2 , lca , G):
+    # 1. List all simple paths
+    paths_1 = list(nx.all_simple_paths(G ,lca ,t1))
+    paths_2 = list(nx.all_simple_paths(G ,lca ,t2))
+    # 2. Find the minimum path
+    path_1 , dist_1 = findMinimumPath(paths_1)
+    path_2 , dist_2 = findMinimumPath(paths_2)
+    path_1.pop(0)
+    path_1=path_1.reversed()
+    return path_1+path_2 , dist_1+dist_2
 #
 #
 #
@@ -226,6 +205,87 @@ def getSvalue(term , ont):
 #
 #
 #
+def findLCAs(t1, t2):
+    # 1. for each of distances
+    for d1 in sorted(list(t1.keys())):
+        for d2 in sorted(list(t2.keys())):
+            # 2. check if there is an intersection between ancestor set
+            intersection = list(set(t1[d1])&set(t2[d2]))
+            if len(intersection)>0:
+                return intersection
+            #endif
+        #endfor
+    #endfor
+#
+#
+#
+def shortestSemanticDifferentiationDistance(geneData , ont):
+    # 0. preprocessing steps
+    G = ont.get_graph()
+    ancestors = None
+    if os.path.exists(os.getcwd()+'/Datasets/allAncestors.json'):
+        ancestors = gu.read_json_file(os.getcwd()+'/Datasets/allAncestors.json')
+    else:# create annotation file
+        ancestors=gu.allAncestorsAllTerms(terms , ont)
+        with open(os.getcwd()+'/Datasets/allAncestors.json', "w") as f:
+            json.dump(ancestors, f, indent=4)
+    #endif
+    # 1. extract all terms from gene data
+    terms = pu.extractTermsFromGenes(geneData)
+    # 2. for each term calculate term's t-value
+    tValues = {}
+    counter=0
+    print('Getting all T-Values !')
+    for t in terms :
+        counter+=1
+        icu.progressBar(counter, len(terms))
+        root ,namespace = gu.findRoot(t, ont)# 2.1 find root term
+        getTValues(t, root , ont , tValues , G)# 2.2 calculate tvalues
+    #endfor
+    print(tValues)
+    with open(os.getcwd()+'/Datasets/tValues.json', "w") as f:
+        json.dump(tValues, f, indent=4)
+    # 3. calculate term distance for each pair of terms in geneData
+    ssddSim = pd.DataFrame(0, index=terms, columns=terms, dtype=np.float64)
+    counter=0
+    print('Calculating Shortest Semantic Differentation Distance !')
+    for t1 in terms :
+        for t2 in terms :
+            counter+=1
+            icu.progressBar(counter, len(terms))
+            if t1==t2 :# 3.1 trivial similarity
+                ssddSim.loc[t1 , t2]=0
+                continue
+            #endif
+            # 3.2 find roots of t1 , t2
+            root1 , namespace1 = gu.findRoot(t1, ont)
+            root2 , namespace2 = gu.findRoot(t2, ont)
+            if not(namespace1==namespace2):# 3.3 trivial distance , must be 1 to turn into 0
+                ssddSim.loc[t1 , t2]=1
+                continue
+            #endif
+            # 3.3 find LCAs
+            lcas = findLCAs(ancestors[t1], ancestors[t2])
+            # 3.4 find minimum path from lca to t1, t2
+            minPathTvalue = 1
+            for lca in lcas :
+                mpath , n = findMinimumPathLCA(t1, t2 , lca , G)
+                # 3.5 sum all tValues in path
+                tvalSum = sum([tValues[node] for node in mpath])
+                if tvalSum<minPathTvalue:
+                    minPathTvalue=tvalSum
+                #endif
+            #endfor
+            ssddSim.loc[t1 , t2]=minPathTvalue
+        #endfor
+    #endfor
+    ssddSim = 1 - ssddSim
+    print(ssddSim)
+    ssddSim.to_csv(os.getcwd()+'/Datasets/ssddSimilarity.csv')
+    return ssddSim
+#
+#
+#
 def semanticValueSimilarity(geneData , ont):
     G = ont.get_graph()
     # 1. extract all terms from gene data
@@ -255,6 +315,7 @@ def semanticValueSimilarity(geneData , ont):
     #endfor
     print(sValueSimilarity)
     sValueSimilarity.to_csv(os.getcwd()+'/Datasets/sValueSimilarity.csv')
+    return sValueSimilarity
 #
 #
 #
@@ -297,6 +358,7 @@ def simpleWeightedDistance(geneData , ont):
     # 4. save similarity
     print(simSimpleWeights)
     simSimpleWeights.to_csv(os.getcwd()+'/Datasets/simSimpleWeights.csv')
+    return simSimpleWeights
 #
 #
 #
@@ -335,6 +397,7 @@ def simRada(geneData, ont):
     # 4. save similarity
     print(similarityRada)
     similarityRada.to_csv(os.getcwd()+'/Datasets/simRada.csv')
+    return similarityRada
 #
 #
 #
