@@ -19,14 +19,14 @@ from InformationContentSimilarity import informationContentUtility as icu
 def icBasedMethodsMenu(geneData, ont):
     menu = '''
     ** Information Content Based Methods **
-    1. -
+    1. Resnik Semantic Similarity
     2. -
     3. -
     '''
     # 0. get information content
-    freq = icu.calculateInformationContent(geneData , ont)
-    print(freq)
-    '''
+    prob = icu.calculateInformationContent(geneData , ont)
+    prob.columns = ['terms' , 'probability']
+    print(prob)
     choice = None
     while 1 :
         print(menu)
@@ -41,7 +41,8 @@ def icBasedMethodsMenu(geneData, ont):
             print('Give a valid integer !')
     #endwhile
     if choice==1 :
-        ebm.simRada(geneData, ont)
+        icu.calculateSimResnik(prob, ont)
+    '''
     elif choice==2:
         ebm.simpleWeightedDistance(geneData , ont)
     elif choice==3:

@@ -305,33 +305,48 @@ def simResnikMICA(t1, t2 , ont , df, G=None):
 #
 #
 #
-def simResnik(t1, t2 , ont , df, G=None):
-    if G == None:
-        G=ont.get_graph()
-    if t1==t2:
-        return [None , 1]
-    # 0. get roots
-    root1 ,namespace1 = gu.findRoot(t1, ont)
-    root2 ,namespace2 = gu.findRoot(t2, ont)
-    if not root1==root2 :
-        return [None , 0]
-    anc1 = gu.allAncestors(t1 , ont , G=G)
-    anc2 = gu.allAncestors(t2 , ont , G=G)
-    ancIntersection = set(anc1[1])&set(anc2[1])
-    if len(ancIntersection)<1:
-        return [None, 0]
+def calculateSimResnik(prob , ont):
+    # 0. preprocessing steps
+    ancestors = None
+    if os.path.exists(os.getcwd()+'/Datasets/allAncestors.json'):
+        ancestors = gu.read_json_file(os.getcwd()+'/Datasets/allAncestors.json')
+    else:# create annotation file
+        ancestors=gu.allAncestorsAllTerms(terms , ont)
+        with open(os.getcwd()+'/Datasets/allAncestors.json', "w") as f:
+            json.dump(ancestors, f, indent=4)
+    resnikSimilarity = pd.DataFrame(0, index=prob['terms'].values.tolist(), columns=prob['terms'].values.tolist(), dtype=np.float64)
+    counter=0
+    for t1 in resnikSimilarity.index :
+        for t2 in resnikSimilarity.columns:
+            counter+=1
+            progressBar(counter , len(resnikSimilarity.index)**2)
+            resnikSimilarity.loc[t1, t2]=simResnik(t1 , t2 , ancestors[t1] , ancestors[t2], prob)
+        #endfor
+    #endfor
+    resnikSimilarity.to_csv(os.getcwd()+'/Datasets/resnikSimilarity.csv')
+    print(resnikSimilarity)
+    return resnikSimilarity
+#
+#
+#
+def simResnik(t1, t2 , anc1 , anc2 , prob):
+    if t1==t2:#trivial similarity
+        return 1
+    #endif
+    # 1. find lcas
+    lcas = icu.findLCAs(anc1, anc2)
+    # 2. calculate similarity using lca
+    # 2.1 if no lca , then 0 similarity
+    if lcas==None:
+        return 0
     else:
-        pic = -1
-        anc = None
-        for p in ancIntersection:
-            if df[df['terms'] == p]['IC'].values[0] > pic:
-                pic=df[df['terms'] == p]['IC'].values[0]
-                anc = p
+        mica = 0
+        for p in lcas :
+            if -np.log(prob.loc[p]) > mica:
+                mica = -np.log(prob.loc[p])
             #endif
         #endfor
-        #print('*'*25)
-        #print(f'Term {t1} , {t2} Resnik similarity given by common ancestor {anc} is : {pic}')
-        return [anc, pic]
+        return mica
     #endif
 #
 # Similarities using Resnik Measure
@@ -378,20 +393,29 @@ def calculateInformationContent(geneData , ont):
     #endfor
     allTerms=list(set(allTerms))# 3.2 turn it into a set for all terms to be unique
     # 4. find the frequency using child terms
-    tFrequency = termFrequency(geneData , ancestors , ont)# returns a pandas dataframe
-    # 4.1 save term frequency
-    tFrequency.to_csv(os.getcwd()+'/Datasets/termFrequency.csv')
+    tFrequency = None
+    if os.path.exists(os.getcwd()+'/Datasets/termFrequency.csv'):
+        tFrequency = pd.read_csv(os.getcwd()+'/Datasets/termFrequency.csv')
+    else:# create annotation file
+        tFrequency = termFrequency(geneData , ancestors , ont)# returns a pandas dataframe
+        # 4.1 save term frequency
+        tFrequency.to_csv(os.getcwd()+'/Datasets/termFrequency.csv')
     # 5. calculate propabilities based on sub ontology
-    tProb = {}
-    counter=0
-    for t in tFrequency.index:
-        counter+=1
-        progressBar(counter, len(tFrequency.index))
-        root , namespace = gu.findRoot(t,ont)
-        tProb[t]=tFrequency.loc[t]/tFrequency.loc[root]
-    #endfor
-    df = pd.DataFrame.from_dict(tProb, orient='index',)
-    new_columns = ['probability']
-    df.columns = new_columns
-    df.to_csv(os.getcwd()+'/Datasets/termProbability.csv')
-    print(df)
+    df_prob = None
+    if os.path.exists(os.getcwd()+'/Datasets/termProbability.csv'):
+        df_prob = pd.read_csv(os.getcwd()+'/Datasets/termProbability.csv')
+    else:# create annotation file
+        tProb = {}
+        counter=0
+        for t in tFrequency.index:
+            counter+=1
+            progressBar(counter, len(tFrequency.index))
+            root , namespace = gu.findRoot(t,ont)
+            tProb[t]=tFrequency.loc[t]/tFrequency.loc[root]
+        #endfor
+        df_prob = pd.DataFrame.from_dict(tProb, orient='index',)
+        new_columns = ['probability']
+        df_prob.columns = new_columns
+        df_prob.to_csv(os.getcwd()+'/Datasets/termProbability.csv')
+    #endif
+    return df_prob
