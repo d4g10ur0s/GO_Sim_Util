@@ -1,5 +1,6 @@
 # basic modules
 import sys
+import os
 import time
 import random
 # data analysis modules
@@ -10,21 +11,17 @@ import ontobio as ob
 import networkx as nx
 # custom modules
 from Parsing import graphUtilities as gu
+from Parsing import parsing as pu
+#
+#
+#
 def progressBar(count_value, total, suffix=''):
     emoji = [
-      '🤣','🙂', '🥰', '🙂', '👿', '🤡', '👽', '💩', '😤', '🤬', '🤯', '🥶',
-      '🥵','🥶', '🥵', '🤒', '🤕', '🤢', '🤮', '🤧', '🥴', '🤯','🤠', '🤥',
-      '🤫', '🤭', '🧐', '🤓', '🥸', '🥳', '🥲', '🥹', '🥱', '🤤','🤐','🤫',
-      '🤭', '🤑', '😬', '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶','🥴','🤯',
-      '🙁', '😤', '🤬', '🥶', '🥵', '🥶', '🥵', '🤒', '🤕', '🤢','🤮','🤧',
-      '🥴', '🤯', '🙄', '😬', '🤥', '🤫', '🤭', '🧐', '🤓', '🥸','🥳','🥲',
-      '🥹', '🥱', '🤤', '🤐', '🤫', '🤭', '🤑', '😬', '🤒', '🤕','🤢','🤮',
-      '🤧', '🥵', '🥶', '🥴', '🤯', '🙁', '😤', '🤬','🥶', '🥵', '🤒','🤕',
-      '🤢', '🤮', '🤧', '🥴', '🤯', '🙄', '😬', '🤥', '🤫','🤭','🧐','🤓' ,
-      '🥸', '🥳', '🥲', '🥹', '🥱', '🤤', '🤐', '🤫', '🤭','🤑','😬', '🤒',
-      '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '🥴', '🤯', '🙁', '😤','🤬','🥶',
-      '🥵', '🥶', '🥵','🤒', '🤕', '🤢', '🤮', '🤧', '🥴', '🤯','🙄', '😬',
-      '🤥', '🤫', '🤭', '🧐', '🤓','🥸', '🥳', '🥲', '🥹', '🥱',]
+      '👿','🤡','👽','💩','😤','🤬','🤯','🥶','🥵',
+      '🤒','🤕','🤢','🤮','🤧','🥴','🤥','🤫','🤭',
+      '🥸','🥲','🥱','🤫','🤭','😬','🤒','🤮','🤧',
+      '🥴','🙁','😤','🙄',
+      ]
     #emoji = ['\u1F615','\u1FAE4','\u1F61F','\u1F641','\u2639','\u1F62E','\u1F62F','\u1F632','\u1F633','\u1F97A','\u1F979','\u1F626','\u1F627','\u1F628','\u1F630','\u1F625','\u1F622','\u1F62D','\u1F631','\u1F616']
     #emoji = [e.decode('utf-8') for e in encoded_emojis]
     bar_length = 80
@@ -246,26 +243,36 @@ def calcIC(annoTerms , ont):
 #
 #
 #
-def frequencyANDprobability(geneData , ont):
-    termFrequency = {}
-    # 1. Get term frequency from annotations
+def termFrequency(geneData , ancestors , ont ):
+    tFrequency = {}
+    # 1. Get term frequency of leaf terms from annotations
     for g in geneData :
         for t in geneData[g] :
-            if t[0] in termFrequency.keys():
-                termFrequency[t[0]]+=1
+            if t[0] in tFrequency.keys():
+                tFrequency[t[0]]+=1
             else:
-                termFrequency[t[0]]=1
+                tFrequency[t[0]]=1
             #endif
         #endfor
     #endfor
-    df = pd.DataFrame.from_dict(termFrequency, orient='index',)
+    # 2. Get ancestors' frequencies
+    counter=0
+    for t in list(ancestors.keys()):# 2.1 for each term
+        counter+=1
+        progressBar(counter, len(ancestors.keys()))
+        tanc = ancestors[t]
+        for dist in tanc:# 2.3 for each ancestor list
+            for a in tanc[dist]:# 2.4 for each ancestor in ancestor list
+                achildren=set(ont.children(a))# 2.5 get his children
+                validChildren=set(tFrequency.keys())&achildren# 2.6 find intersection with dataset's terms valid children are already stored in termFrequency
+                tFrequency[a]=sum([tFrequency[kid] for kid in validChildren])# 2.7 calculate frequency using children's frequency
+            #endfor
+        #endfor
+    #endfor
+    df = pd.DataFrame.from_dict(tFrequency, orient='index',)
     new_columns = ['frequency']
     df.columns = new_columns
     return df
-    '''
-    parentFrequency(termFrequency , ont)
-    df = pd.concat([df, df/df[0].max()], axis=1)
-    '''
 #
 #
 #
@@ -346,3 +353,45 @@ def similarityIC(t1 , t2 , ic , anc):
     simIC = ( (2 * ic['probability'][anc]) / (np.log(ic['probability'][t1])+np.log(ic['probability'][t2])) ) * (1- ( 1/(1+ic['probability'][anc]) ) )
     print(f'Term {t1} , {t2} IC similarity given by common ancestor {anc} is : {simIC}')
     print('*'*25)
+#
+#
+#
+def calculateInformationContent(geneData , ont):
+    # 1. extract all terms from gene data
+    terms = pu.extractTermsFromGenes(geneData)
+    # 2. find all ancestors for each term
+    ancestors = None
+    if os.path.exists(os.getcwd()+'/Datasets/allAncestors.json'):
+        ancestors = gu.read_json_file(os.getcwd()+'/Datasets/allAncestors.json')
+    else:# create annotation file
+        ancestors=gu.allAncestorsAllTerms(terms , ont)
+        with open(os.getcwd()+'/Datasets/allAncestors.json', "w") as f:
+            json.dump(ancestors, f, indent=4)
+    #endif
+    # 3. create a set with all terms
+    allTerms = []
+    for t in terms :
+        tanc = ancestors[t]
+        for k in list(tanc.keys()):# 3.1 get all ancestors of t
+            allTerms+=list(tanc[k])
+        #endfor
+    #endfor
+    allTerms=list(set(allTerms))# 3.2 turn it into a set for all terms to be unique
+    # 4. find the frequency using child terms
+    tFrequency = termFrequency(geneData , ancestors , ont)# returns a pandas dataframe
+    # 4.1 save term frequency
+    tFrequency.to_csv(os.getcwd()+'/Datasets/termFrequency.csv')
+    # 5. calculate propabilities based on sub ontology
+    tProb = {}
+    counter=0
+    for t in tFrequency.index:
+        counter+=1
+        progressBar(counter, len(tFrequency.index))
+        root , namespace = gu.findRoot(t,ont)
+        tProb[t]=tFrequency.loc[t]/tFrequency.loc[root]
+    #endfor
+    df = pd.DataFrame.from_dict(tProb, orient='index',)
+    new_columns = ['probability']
+    df.columns = new_columns
+    df.to_csv(os.getcwd()+'/Datasets/termProbability.csv')
+    print(df)

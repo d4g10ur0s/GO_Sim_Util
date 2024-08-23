@@ -140,17 +140,11 @@ def findMinimumPathLCA(t1, t2 , lca , G):
     path_1 , dist_1 = findMinimumPath(paths_1)
     path_2 , dist_2 = findMinimumPath(paths_2)
     path_1.pop(0)
-    print(str(path_1))
-    print(str(path_2))
-    print(str(path_1[::-1]+path_2))
     return path_1[::-1]+path_2 , dist_1+dist_2
 #
 #
 #
 def minimumPathLength(t1 , t2):
-    '''
-    1.
-    '''
     if not(t1[1] == t2[1]):
         return 0
     dist_1 = 0
@@ -228,6 +222,7 @@ def findLCAs(t1, t2):
             #endif
         #endfor
     #endfor
+    return None# there is no LCA
 #
 #
 #
@@ -271,15 +266,12 @@ def shortestSemanticDifferentiationDistance(geneData , ont):
                 ssddSim.loc[t1 , t2]=0
                 continue
             #endif
-            # 3.2 find roots of t1 , t2
-            root1 , namespace1 = gu.findRoot(t1, ont)
-            root2 , namespace2 = gu.findRoot(t2, ont)
-            if not(namespace1==namespace2):# 3.3 trivial distance , must be 1 to turn into 0
+            # 3.3 find LCAs
+            lcas = findLCAs(ancestors[t1], ancestors[t2])
+            if lcas==None:# 3.3 trivial distance , must be 1 to turn into 0
                 ssddSim.loc[t1 , t2]=1
                 continue
             #endif
-            # 3.3 find LCAs
-            lcas = findLCAs(ancestors[t1], ancestors[t2])
             # 3.4 find minimum path from lca to t1, t2
             minPathTvalue = 1
             for lca in lcas :

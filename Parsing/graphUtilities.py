@@ -54,7 +54,7 @@ def findAllChildrenInGraph(t , ont):
             tempChildren+=ont.children(c)# get its children and add them to temp
         #endfor
         dist+=1
-        children=tempChildren
+        children=list(set(tempChildren))
     #endwhile
     return dists , n
 #

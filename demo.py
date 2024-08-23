@@ -12,7 +12,46 @@ import ontobio as ob
 from Parsing import parsing as pu
 from Parsing import graphUtilities as gu
 from EdgeBasedSimilarity import edgeBasedMethods as ebm
-
+from InformationContentSimilarity import informationContentUtility as icu
+#
+#
+#
+def icBasedMethodsMenu(geneData, ont):
+    menu = '''
+    ** Information Content Based Methods **
+    1. -
+    2. -
+    3. -
+    '''
+    # 0. get information content
+    freq = icu.calculateInformationContent(geneData , ont)
+    print(freq)
+    '''
+    choice = None
+    while 1 :
+        print(menu)
+        try :
+            choice = int(input('Select a type of methods : '))
+            if choice < 1 or choice > 4:
+                raise ValueError
+            else:
+                break
+            #endif
+        except ValueError :
+            print('Give a valid integer !')
+    #endwhile
+    if choice==1 :
+        ebm.simRada(geneData, ont)
+    elif choice==2:
+        ebm.simpleWeightedDistance(geneData , ont)
+    elif choice==3:
+        ebm.semanticValueSimilarity(geneData , ont)
+    elif choice==4:
+        ebm.shortestSemanticDifferentiationDistance(geneData , ont)
+    '''
+#
+#
+#
 def edgeBasedMethodsMenu(geneData, ont):
     menu = '''
     ** Edge Based Methods **
@@ -107,6 +146,8 @@ def main():
             #endif
             if choice==1:
                 edgeBasedMethodsMenu(geneData , ont)
+            if choice==2:
+                icBasedMethodsMenu(geneData, ont)
         except ValueError :
             print('Give a valid integer !')
     #endwhile
