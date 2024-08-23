@@ -17,7 +17,6 @@ from InformationContentSimilarity import informationContentUtility as icu
 def getTValues(t , root , ont , tValues , G=None):
     # 0. preprocessing steps
     tValues[root]=1# 0.1 root has t-value 1
-    tchildren , tn = gu.findAllChildrenInGraph(t,ont)# 0.2 find number of descendants in ontology graph for term t
     if G==None :
         G=ont.get_graph()
     #endif
@@ -35,23 +34,34 @@ def getTValues(t , root , ont , tValues , G=None):
         parents=list(set(tparents))
     #endwhile
     # 2. go down the subgraph
-    while dist > 0:
+    while dist-1 > 0:
         dist-=1
         for pterm in pdist[dist]:
             if pterm in tValues.keys():
                 pass
             else:
                 parents=ont.parents(pterm)# 2.1 get parents
+                tchildren , tn = gu.findAllChildrenInGraph(pterm,ont)# 2.3 find number of descendants in ontology graph for term pterm
                 val=0
-                for p in parents:# 2.2 calculate t-value
-                    pchildren , pn = gu.findAllChildrenInGraph(p,ont)# 2.3 find number of descendants in ontology graph for term p
+                for p in parents:# 2.4 calculate t-value
+                    pchildren , pn = gu.findAllChildrenInGraph(p,ont)# 2.5 find number of descendants in ontology graph for term p
                     omega=tn/pn
                     val+=omega*tValues[p]
                 #endfor
-                tValues[pterm]=val/len(parents)# 2.4 tvalue is the mean of summmation
+                tValues[pterm]=val/len(parents)# 2.6 tvalue is the mean of summmation
             #endif
         #endfor
     #endwhile
+    # 3. do it for term t
+    parents=ont.parents(t)# 3.1 get parents
+    val=0
+    tchildren , tn = gu.findAllChildrenInGraph(t,ont)# 3.2 find number of descendants in ontology graph for term t
+    for p in parents:# 3.3 calculate t-value
+        pchildren , pn = gu.findAllChildrenInGraph(p,ont)# 3.4 find number of descendants in ontology graph for term p
+        omega=tn/pn
+        val+=omega*tValues[p]
+    #endfor
+    tValues[t]=val/len(parents)# 3.5 tvalue is the mean of summmation
 #
 #
 #
@@ -130,8 +140,10 @@ def findMinimumPathLCA(t1, t2 , lca , G):
     path_1 , dist_1 = findMinimumPath(paths_1)
     path_2 , dist_2 = findMinimumPath(paths_2)
     path_1.pop(0)
-    path_1=path_1.reversed()
-    return path_1+path_2 , dist_1+dist_2
+    print(str(path_1))
+    print(str(path_2))
+    print(str(path_1[::-1]+path_2))
+    return path_1[::-1]+path_2 , dist_1+dist_2
 #
 #
 #
@@ -220,6 +232,8 @@ def findLCAs(t1, t2):
 #
 #
 def shortestSemanticDifferentiationDistance(geneData , ont):
+    # 1. extract all terms from gene data
+    terms = pu.extractTermsFromGenes(geneData)
     # 0. preprocessing steps
     G = ont.get_graph()
     ancestors = None
@@ -230,21 +244,21 @@ def shortestSemanticDifferentiationDistance(geneData , ont):
         with open(os.getcwd()+'/Datasets/allAncestors.json', "w") as f:
             json.dump(ancestors, f, indent=4)
     #endif
-    # 1. extract all terms from gene data
-    terms = pu.extractTermsFromGenes(geneData)
     # 2. for each term calculate term's t-value
     tValues = {}
     counter=0
     print('Getting all T-Values !')
-    for t in terms :
-        counter+=1
-        icu.progressBar(counter, len(terms))
-        root ,namespace = gu.findRoot(t, ont)# 2.1 find root term
-        getTValues(t, root , ont , tValues , G)# 2.2 calculate tvalues
-    #endfor
-    print(tValues)
-    with open(os.getcwd()+'/Datasets/tValues.json', "w") as f:
-        json.dump(tValues, f, indent=4)
+    if os.path.exists(os.getcwd()+'/Datasets/tValues.json'):
+        tValues = gu.read_json_file(os.getcwd()+'/Datasets/tValues.json')
+    else:
+        for t in terms :
+            counter+=1
+            icu.progressBar(counter, len(terms))
+            root ,namespace = gu.findRoot(t, ont)# 2.1 find root term
+            getTValues(t, root , ont , tValues , G)# 2.2 calculate tvalues
+        #endfor
+        with open(os.getcwd()+'/Datasets/tValues.json', "w") as f:
+            json.dump(tValues, f, indent=4)
     # 3. calculate term distance for each pair of terms in geneData
     ssddSim = pd.DataFrame(0, index=terms, columns=terms, dtype=np.float64)
     counter=0
@@ -252,7 +266,7 @@ def shortestSemanticDifferentiationDistance(geneData , ont):
     for t1 in terms :
         for t2 in terms :
             counter+=1
-            icu.progressBar(counter, len(terms))
+            icu.progressBar(counter, len(terms)**2)
             if t1==t2 :# 3.1 trivial similarity
                 ssddSim.loc[t1 , t2]=0
                 continue
