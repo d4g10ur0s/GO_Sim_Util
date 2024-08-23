@@ -12,6 +12,7 @@ import networkx as nx
 # custom modules
 from Parsing import graphUtilities as gu
 from Parsing import parsing as pu
+from EdgeBasedSimilarity import edgeBasedMethods as ebm
 #
 #
 #
@@ -334,7 +335,7 @@ def simResnik(t1, t2 , anc1 , anc2 , prob):
         return 1
     #endif
     # 1. find lcas
-    lcas = icu.findLCAs(anc1, anc2)
+    lcas = ebm.findLCAs(anc1, anc2)
     # 2. calculate similarity using lca
     # 2.1 if no lca , then 0 similarity
     if lcas==None:
@@ -342,8 +343,10 @@ def simResnik(t1, t2 , anc1 , anc2 , prob):
     else:
         mica = 0
         for p in lcas :
-            if -np.log(prob.loc[p]) > mica:
-                mica = -np.log(prob.loc[p])
+            ic = -np.log(prob[prob['terms']==p]['probability']).values[0]
+            print(ic)
+            if ic > mica:
+                mica = ic
             #endif
         #endfor
         return mica
@@ -351,11 +354,39 @@ def simResnik(t1, t2 , anc1 , anc2 , prob):
 #
 # Similarities using Resnik Measure
 #
-def similarityJiang(simRes , t1 , t2 , ic , anc):
-    simJiang = (2 * simRes) / (ic['IC'][t1]+ic['IC'][t2])
-    print('-'*25)
-    print(f'Term {t1} , {t2} Jiang similarity given by common ancestor {anc} is : {simJiang}')
-    print('-'*25)
+def calculateSimJiang(prob , ont):
+    # 1. calculate resnik similarity
+    simRes = None
+    if os.path.exists(os.getcwd()+'/Datasets/resnikSimilarity.csv'):
+        simRes = pd.read_csv(os.getcwd()+'/Datasets/resnikSimilarity.csv')
+    else:
+        # 1.1 calculate resnik similarity
+        simRes = calculateSimResnik(prob , ont)
+    #endif
+    simRes.index=simRes.columns# 1.2 fix index
+    jiangSimilarity = pd.DataFrame(0, index=prob['terms'].values.tolist(), columns=prob['terms'].values.tolist(), dtype=np.float64)
+    counter=0
+    for t1 in jiangSimilarity.index :
+        for t2 in jiangSimilarity.columns:
+            counter+=1
+            progressBar(counter , len(jiangSimilarity.index)**2)
+            jiangSimilarity.loc[t1, t2]=similarityJiang(simRes.loc[t1, t2] , t1 , t2 , prob)
+        #endfor
+    #endfor
+    jiangSimilarity.to_csv(os.getcwd()+'/Datasets/jiangSimilarity.csv')
+    print(jiangSimilarity)
+    return jiangSimilarity
+#
+#
+#
+def similarityJiang(simRes , t1 , t2 , prob):
+    ic1 = -np.log(prob[prob['terms']==t1]['probability'])
+    ic2 = -np.log(prob[prob['terms']==t2]['probability'])
+    simJiang = (2 * simRes) / (ic1 + ic2)
+    return simJiang
+#
+#
+#
 def similarityLin(simRes , t1 , t2 , ic , anc):
     simLin = (2 * simRes) - ic['IC'][t1] -ic['IC'][t2]
     print(f'Term {t1} , {t2} Lin similarity given by common ancestor {anc} is : {simLin}')
