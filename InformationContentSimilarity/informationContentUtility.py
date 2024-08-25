@@ -306,36 +306,12 @@ def simResnikMICA(t1, t2 , ont , df, G=None):
 #
 #
 #
-def calculateSimResnik(prob , ont):
-    # 0. preprocessing steps
-    ancestors = None
-    if os.path.exists(os.getcwd()+'/Datasets/allAncestors.json'):
-        ancestors = gu.read_json_file(os.getcwd()+'/Datasets/allAncestors.json')
-    else:# create annotation file
-        ancestors=gu.allAncestorsAllTerms(terms , ont)
-        with open(os.getcwd()+'/Datasets/allAncestors.json', "w") as f:
-            json.dump(ancestors, f, indent=4)
-    resnikSimilarity = pd.DataFrame(0, index=prob['terms'].values.tolist(), columns=prob['terms'].values.tolist(), dtype=np.float64)
-    counter=0
-    for t1 in resnikSimilarity.index :
-        for t2 in resnikSimilarity.columns:
-            counter+=1
-            progressBar(counter , len(resnikSimilarity.index)**2)
-            resnikSimilarity.loc[t1, t2]=simResnik(t1 , t2 , ancestors[t1] , ancestors[t2], prob)
-        #endfor
-    #endfor
-    resnikSimilarity.to_csv(os.getcwd()+'/Datasets/resnikSimilarity.csv')
-    print(resnikSimilarity)
-    return resnikSimilarity
-#
-#
-#
-def simResnik(t1, t2 , anc1 , anc2 , prob):
+def simResnik(t1, t2 , prob , ont):
     if t1==t2:#trivial similarity
         return 1
     #endif
     # 1. find lcas
-    lcas = ebm.findLCAs(anc1, anc2)
+    lcas = ebm.findLCAs(t1, t2, ont)
     # 2. calculate similarity using lca
     # 2.1 if no lca , then 0 similarity
     if lcas==None:
@@ -344,7 +320,6 @@ def simResnik(t1, t2 , anc1 , anc2 , prob):
         mica = 0
         for p in lcas :
             ic = -np.log(prob[prob['terms']==p]['probability']).values[0]
-            print(ic)
             if ic > mica:
                 mica = ic
             #endif
@@ -352,13 +327,43 @@ def simResnik(t1, t2 , anc1 , anc2 , prob):
         return mica
     #endif
 #
+#
+#
+def calculateSimResnik(prob , ont):
+    if os.path.exists(os.getcwd()+'/Datasets/resnikSimilarity.csv'):
+        resnikSimilarity = pd.read_csv(os.getcwd()+'/Datasets/resnikSimilarity.csv')
+        resnikSimilarity.index=resnikSimilarity.columns
+        return resnikSimilarity
+    #endif
+    resnikSimilarity = pd.DataFrame(0, index=prob['terms'].values.tolist(), columns=prob['terms'].values.tolist(), dtype=np.float64)
+    counter=0
+    for t1 in resnikSimilarity.index :
+        for t2 in resnikSimilarity.columns:
+            counter+=1
+            progressBar(counter , len(resnikSimilarity.index)**2)
+            resnikSimilarity.loc[t1, t2]=simResnik(t1 , t2 , prob , ont)
+        #endfor
+    #endfor
+    resnikSimilarity.to_csv(os.getcwd()+'/Datasets/resnikSimilarity.csv')
+    print(resnikSimilarity)
+    return resnikSimilarity
+#
 # Similarities using Resnik Measure
+#
+def similarityJiang(simRes , t1 , t2 , prob):
+    ic1 = -np.log(prob[prob['terms']==t1]['probability'])
+    ic2 = -np.log(prob[prob['terms']==t2]['probability'])
+    simJiang = (2 * simRes) / (ic1 + ic2)
+    return simJiang
+#
+#
 #
 def calculateSimJiang(prob , ont):
     # 1. calculate resnik similarity
     simRes = None
     if os.path.exists(os.getcwd()+'/Datasets/resnikSimilarity.csv'):
         simRes = pd.read_csv(os.getcwd()+'/Datasets/resnikSimilarity.csv')
+        print(simRes.drop(column='Unnamed: 0'))
     else:
         # 1.1 calculate resnik similarity
         simRes = calculateSimResnik(prob , ont)
@@ -379,18 +384,39 @@ def calculateSimJiang(prob , ont):
 #
 #
 #
-def similarityJiang(simRes , t1 , t2 , prob):
+def similarityLin(simRes , t1 , t2 , prob):
     ic1 = -np.log(prob[prob['terms']==t1]['probability'])
     ic2 = -np.log(prob[prob['terms']==t2]['probability'])
-    simJiang = (2 * simRes) / (ic1 + ic2)
-    return simJiang
+    simLin = (2 * simRes)-ic1-ic2
+    return simLin
 #
 #
 #
-def similarityLin(simRes , t1 , t2 , ic , anc):
-    simLin = (2 * simRes) - ic['IC'][t1] -ic['IC'][t2]
-    print(f'Term {t1} , {t2} Lin similarity given by common ancestor {anc} is : {simLin}')
-    print('*'*25)
+def calculateSimLin(prob , ont):
+    # 1. calculate resnik similarity
+    simRes = None
+    if os.path.exists(os.getcwd()+'/Datasets/resnikSimilarity.csv'):
+        simRes = pd.read_csv(os.getcwd()+'/Datasets/resnikSimilarity.csv')
+    else:
+        # 1.1 calculate resnik similarity
+        simRes = calculateSimResnik(prob , ont)
+    #endif
+    simRes.index=simRes.columns# 1.2 fix index
+    linSimilarity = pd.DataFrame(0, index=prob['terms'].values.tolist(), columns=prob['terms'].values.tolist(), dtype=np.float64)
+    counter=0
+    for t1 in linSimilarity.index :
+        for t2 in linSimilarity.columns:
+            counter+=1
+            progressBar(counter , len(linSimilarity.index)**2)
+            linSimilarity.loc[t1, t2]=similarityJiang(simRes.loc[t1, t2] , t1 , t2 , prob)
+        #endfor
+    #endfor
+    linSimilarity.to_csv(os.getcwd()+'/Datasets/linSimilarity.csv')
+    print(linSimilarity)
+    return linSimilarity
+#
+#
+#
 def similarityRelevance(t1 , t2 , ic , anc):
     simRel = ( (2 * np.log(ic['probability'][anc]) ) / (np.log(ic['probability'][t1])+np.log(ic['probability'][t2])) ) * (1-ic['probability'][anc])
     print(f'Term {t1} , {t2} Relevance similarity given by common ancestor {anc} is : {simRel}')
