@@ -110,53 +110,6 @@ def calcICT(terms, ont):
 #
 #
 #
-def grasm(t1, t2 , ont , ic):
-    # 1. find all ancestors roots
-    anc1 = gu.allAncestors(t1 , ont)
-    anc2 = gu.allAncestors(t2 , ont)
-    # 2. get all common ancestors
-    ancestor1 = []
-    for i in anc1 :
-        ancestor1+=anc1[i]
-    ancestor2 = []
-    for i in anc2 :
-        ancestor2+=anc2[i]
-    commonAnc = set(ancestor1)&set(ancestor2)
-    # 3. for each ancestor find the number of paths
-    G = ont.get_graph()
-    ca = {}
-    for i in commonAnc:
-        npaths1 = len(list(nx.all_simple_paths(G, i, t1)))
-        npaths2 = len(list(nx.all_simple_paths(G, i, t2)))
-        if abs(npaths1 - npaths2) in ca.keys():
-            ca[abs(npaths1 - npaths2)].append(i)
-        else:
-            ca[abs(npaths1 - npaths2)] = [i]
-        #endif
-    #endfor
-    # 4. exclude multiple ancestors from each level
-    dca = {}
-    for i in ca :
-        p = None
-        tempic = -1
-        for a in ca[i]:
-            if ic['IC'][a] > tempic :
-                tempic = ic['IC'][a]
-                p = a
-        #endfor
-        dca[i] = (p , tempic)
-    #endfor
-    sm = 0
-    for i in dca :
-        sm+=dca[i][1]
-    if len(dca.keys())==0:
-        print(f'DCA similarity of {t1} , {t2} is {sm}')
-    else:
-        sm /= len(dca.keys())
-        print(f'DCA similarity of {t1} , {t2} is {sm}')
-#
-#
-#
 def parentFrequency(terms, ont):
     G=ont.get_graph()
     # 0. get all terms
@@ -306,6 +259,97 @@ def simResnikMICA(t1, t2 , ont , df, G=None):
 #
 #
 #
+def diShin(t1 , t2 , prob , ont, G=None):
+    if G==None:
+        G=ont.get_graph()
+    #endif
+    # 1. find all common ancestors
+    anc_1 = getAllParents(t1, ont)
+    anc_2 = getAllParents(t2, ont)
+    commonParents = (set(anc_1)&set(anc_2))
+    if len(commonParents)==0 :
+        return 0 , {}
+    #endif
+    # 2. for each ancestor in common ancestors find the number of paths from ancestor to terms
+    ancPath = {}
+    for par in commonParents:
+        n1 = len(list(nx.all_simple_paths(G , par , t1)))
+        n2 = len(list(nx.all_simple_paths(G , par , t2)))
+        diff = abs(n1-n2)
+        if diff in ancPath.keys():
+            ancPath[diff].append(par)
+        else:
+            ancPath[diff]=[par]
+        #endif
+    #endfor
+    # 3. find the most informative from each difference
+    simDiShin=0
+    disjunctionPath = {}
+    for diff in ancPath.keys():
+        pic = None
+        mica = 0
+        for par in ancPath[diff]:
+            tic = -np.log(prob[prob['terms']==par]['probability']).values[0]
+            if mica<=tic:
+                mica=tic
+                pic=par
+            #endif
+        #endfor
+        disjunctionPath[diff]=pic
+        simDiShin+=mica
+    #endfor
+    simDiShin=simDiShin/len(ancPath.keys())# similarity is the average of disjunctive ICs
+    return simDiShin ,disjunctionPath
+#
+#
+#
+def calculateDiShin(prob , ont):
+    G=ont.get_graph()
+    dishinSimilarity = pd.DataFrame(0, index=prob['terms'].values.tolist(), columns=prob['terms'].values.tolist(), dtype=np.float64)
+    counter=0
+    for t1 in dishinSimilarity.index :
+        for t2 in dishinSimilarity.columns:
+            counter+=1
+            progressBar(counter , len(dishinSimilarity.index)**2)
+            dishinSimilarity.loc[t1, t2], ancPath = diShin(t1 , t2 , prob , ont, G)
+        #endfor
+    #endfor
+    dishinSimilarity.to_csv(os.getcwd()+'/Datasets/dishinSimilarity.csv')
+    print(dishinSimilarity)
+    return dishinSimilarity
+#
+#
+#
+def simGic(t1 , t2 , prob , ont):
+    # 1. get all parents for t1
+    anc_1 = getAllParents(t1, ont)
+    anc_2 = getAllParents(t2, ont)
+    commonParents = (set(anc_1)&set(anc_2))|set([t1 , t2])
+    allParents = set(anc_1)|set(anc_2)|set([t1 , t2])
+    # 2. calculate similarity based on all and common parents
+    sum_1 = sum(prob[prob['terms'].isin(commonParents)]['probability'].values.tolist())
+    sum_2 = sum(prob[prob['terms'].isin(allParents)]['probability'].values.tolist())
+    graphSim = sum_1/sum_2
+    return graphSim
+#
+#
+#
+def calculateSimGIC(prob , ont):
+    graphICSimilarity = pd.DataFrame(0, index=prob['terms'].values.tolist(), columns=prob['terms'].values.tolist(), dtype=np.float64)
+    counter=0
+    for t1 in graphICSimilarity.index :
+        for t2 in graphICSimilarity.columns:
+            counter+=1
+            progressBar(counter , len(graphICSimilarity.index)**2)
+            graphICSimilarity.loc[t1, t2]=simGic(t1 , t2 , prob , ont)
+        #endfor
+    #endfor
+    graphICSimilarity.to_csv(os.getcwd()+'/Datasets/graphICSimilarity.csv')
+    print(graphICSimilarity)
+    return graphICSimilarity
+#
+#
+#
 def simResnik(t1, t2 , prob , ont):
     if t1==t2:#trivial similarity
         return 1
@@ -420,6 +464,9 @@ def calculateSimLin(prob , ont):
 #
 #
 def similarityRelevance(t1 , t2 , prob , ont):
+    if t1==t2:# trivial similarity
+        return 1
+    #endif
     # 1. find lcas of t1 , t2
     lcas = ebm.findLCAs(t1, t2, ont)
     if lcas==None :# trivial similarity
@@ -460,6 +507,9 @@ def calculateSimRel(prob , ont):
 #
 #
 def similarityIC(t1 , t2 , prob , ont):# its MICA not LCA
+    if t1==t2:# trivial similarity
+        return 1
+    #endif
     # 1. find lcas of t1 , t2
     lcas = ebm.findCommonParents(t1, t2, ont)
     if lcas==None :# trivial similarity
@@ -477,7 +527,7 @@ def similarityIC(t1 , t2 , prob , ont):# its MICA not LCA
     #endfor
     ic1 = -np.log(prob[prob['terms']==t1]['probability']).values[0]
     ic2 = -np.log(prob[prob['terms']==t2]['probability']).values[0]
-    pic = -np.log(prob[[prob['terms']==maxLCA]]['probability']).values[0]
+    pic = -np.log(prob[prob['terms']==maxLCA]['probability']).values[0]
     simIC =( (2 * pic) / (ic1+ic2) ) * ( 1 - (1/(1+pic)) )
     return simIC
 #
@@ -490,10 +540,11 @@ def calculateSimInfoCoeff(prob , ont):
         for t2 in simIC.columns:
             counter+=1
             progressBar(counter , len(simIC.index)**2)
-            simIC.loc[t1, t2]=similarityIC(simRes.loc[t1, t2] , t1 , t2 , prob)
+            simIC.loc[t1, t2]=similarityIC(t1 , t2 , prob , ont)
         #endfor
         print(simIC)
     #endfor
+    print(simIC)
     simIC.to_csv(os.getcwd()+'/Datasets/simIC.csv')
     return simIC
 #

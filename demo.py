@@ -20,8 +20,11 @@ def icBasedMethodsMenu(geneData, ont):
     menu = '''
     ** Information Content Based Methods **
     1. Resnik Semantic Similarity
-    2. -
-    3. -
+    2. Jiang Semantic Similarity
+    3. Lin Semantic Similarity
+    4. Relevance Semantic Similarity
+    5. Information Coefficient Semantic Similarity
+    6. Graph Information Content Similarity
     '''
     # 0. get information content
     prob = icu.calculateInformationContent(geneData , ont)
@@ -32,7 +35,7 @@ def icBasedMethodsMenu(geneData, ont):
         print(menu)
         try :
             choice = int(input('Select a type of methods : '))
-            if choice < 1 or choice > 4:
+            if choice < 1 or choice > 7:
                 raise ValueError
             else:
                 break
@@ -42,14 +45,18 @@ def icBasedMethodsMenu(geneData, ont):
     #endwhile
     if choice==1 :
         icu.calculateSimResnik(prob, ont)
-    '''
     elif choice==2:
-        ebm.simpleWeightedDistance(geneData , ont)
+        icu.calculateSimJiang(prob , ont)
     elif choice==3:
-        ebm.semanticValueSimilarity(geneData , ont)
+        icu.calculateSimLin(prob , ont)
     elif choice==4:
-        ebm.shortestSemanticDifferentiationDistance(geneData , ont)
-    '''
+        icu.calculateSimRel(prob , ont)
+    elif choice==5:
+        icu.calculateSimInfoCoeff(prob , ont)
+    elif choice==6:
+        icu.calculateSimGIC(prob , ont)
+    elif choice==7:
+        icu.calculateDiShin(prob , ont)
 #
 #
 #
@@ -140,17 +147,17 @@ def main():
     choice = None
     while 1 :
         print(menu)
-        try :
-            choice = int(input('Select a type of methods : '))
-            if choice < 1 or choice > 4:
-                raise ValueError
-            #endif
-            if choice==1:
-                edgeBasedMethodsMenu(geneData , ont)
-            if choice==2:
-                icBasedMethodsMenu(geneData, ont)
-        except ValueError :
-            print('Give a valid integer !')
+        #try :
+        choice = int(input('Select a type of methods : '))
+        if choice < 1 or choice > 4:
+            raise ValueError
+        #endif
+        if choice==1:
+            edgeBasedMethodsMenu(geneData , ont)
+        if choice==2:
+            icBasedMethodsMenu(geneData, ont)
+        #except ValueError :
+        #    print('Give a valid integer !')
     #endwhile
 
 if __name__ == "__main__":
