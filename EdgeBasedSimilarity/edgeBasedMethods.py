@@ -211,7 +211,7 @@ def getSvalue(term , ont):
 #
 #
 #
-def findLCAs(t1, t2):
+def findLCAsAnc(t1, t2):
     # 1. for each of distances
     for d1 in sorted(list(t1.keys())):
         for d2 in sorted(list(t2.keys())):
@@ -223,6 +223,41 @@ def findLCAs(t1, t2):
         #endfor
     #endfor
     return None# there is no LCA
+#
+#
+#
+def getAllParents(t, ont):
+    p = []
+    parents=ont.parents(t1)
+    while len(parents)>0:
+        tparents=[]
+        for p in parents:
+            tparents+=list(ont.parents(p))
+        #endfor
+        p+=parents
+        parents=tparents
+    #endwhile
+    return set(p)
+#
+#
+#
+def findCommonParents(t1, t2 , ont):
+    p1 = getAllParents(t1,ont)
+    p2 = getAllParents(t2,ont)
+    commonParents=list(p1&p2)
+    if len(commonParents)==0:
+        return None
+    else:
+        return commonParents
+#
+#
+#
+def findLCAs(t1, t2 , ont):
+    # 1. get all parents and distances
+    anc_1 = gu.allAncestors(t1, ont)
+    anc_2 = gu.allAncestors(t2, ont)
+    # 2. find lowest common ancestor
+    return findLCAsAnc(anc_1 , anc_2)
 #
 #
 #
@@ -267,7 +302,7 @@ def shortestSemanticDifferentiationDistance(geneData , ont):
                 continue
             #endif
             # 3.3 find LCAs
-            lcas = findLCAs(ancestors[t1], ancestors[t2])
+            lcas = findLCAsAnc(ancestors[t1], ancestors[t2])
             if lcas==None:# 3.3 trivial distance , must be 1 to turn into 0
                 ssddSim.loc[t1 , t2]=1
                 continue

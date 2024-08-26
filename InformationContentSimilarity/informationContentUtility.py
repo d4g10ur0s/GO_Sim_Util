@@ -351,10 +351,10 @@ def calculateSimResnik(prob , ont):
 # Similarities using Resnik Measure
 #
 def similarityJiang(simRes , t1 , t2 , prob):
-    ic1 = -np.log(prob[prob['terms']==t1]['probability'])
-    ic2 = -np.log(prob[prob['terms']==t2]['probability'])
-    simJiang = (2 * simRes) / (ic1 + ic2)
-    return simJiang
+    ic1 = -np.log(prob[prob['terms']==t1]['probability']).values[0]
+    ic2 = -np.log(prob[prob['terms']==t2]['probability']).values[0]
+    simLin = -(2 * simRes)+ic1+ic2
+    return simLin
 #
 #
 #
@@ -369,6 +369,7 @@ def calculateSimJiang(prob , ont):
         simRes = calculateSimResnik(prob , ont)
     #endif
     simRes.index=simRes.columns# 1.2 fix index
+    print(simRes)
     jiangSimilarity = pd.DataFrame(0, index=prob['terms'].values.tolist(), columns=prob['terms'].values.tolist(), dtype=np.float64)
     counter=0
     for t1 in jiangSimilarity.index :
@@ -376,8 +377,8 @@ def calculateSimJiang(prob , ont):
             counter+=1
             progressBar(counter , len(jiangSimilarity.index)**2)
             jiangSimilarity.loc[t1, t2]=similarityJiang(simRes.loc[t1, t2] , t1 , t2 , prob)
-            print(jiangSimilarity)
         #endfor
+        print(jiangSimilarity)
     #endfor
     jiangSimilarity.to_csv(os.getcwd()+'/Datasets/jiangSimilarity.csv')
     return jiangSimilarity
@@ -385,10 +386,10 @@ def calculateSimJiang(prob , ont):
 #
 #
 def similarityLin(simRes , t1 , t2 , prob):
-    ic1 = -np.log(prob[prob['terms']==t1]['probability'])
-    ic2 = -np.log(prob[prob['terms']==t2]['probability'])
-    simLin = (2 * simRes)-ic1-ic2
-    return simLin
+    ic1 = -np.log(prob[prob['terms']==t1]['probability']).values[0]
+    ic2 = -np.log(prob[prob['terms']==t2]['probability']).values[0]
+    simJiang = (2 * simRes) / (ic1 + ic2)
+    return simJiang
 #
 #
 #
@@ -418,9 +419,9 @@ def calculateSimLin(prob , ont):
 #
 #
 #
-def similarityRelevance(t1 , t2 , ic , anc):
+def similarityRelevance(t1 , t2 , prob , ont):
     # 1. find lcas of t1 , t2
-    lcas = findLCAs(t1, t2, ont)
+    lcas = ebm.findLCAs(t1, t2, ont)
     if lcas==None :# trivial similarity
         return 0
     #endif
@@ -428,38 +429,29 @@ def similarityRelevance(t1 , t2 , ic , anc):
     maxIC = 0
     maxLCA = None
     for lca in lcas:
-        lcaIC = -np.log(prob[prob['terms']==lca]['probability'])
+        lcaIC = -np.log(prob[prob['terms']==lca]['probability']).values[0]
         if maxIC<=lcaIC:
             maxIC=lcaIC
             maxLCA=lca
         #endif
     #endfor
-    ic1 = -np.log(prob[prob['terms']==t1]['probability'])
-    ic2 = -np.log(prob[prob['terms']==t2]['probability'])
-    simRel = ( (2 * maxIC ) / (ic1+ic2) ) * (1-pob[prob['terms']==lca]['probability'])
+    ic1 = -np.log(prob[prob['terms']==t1]['probability']).values[0]
+    ic2 = -np.log(prob[prob['terms']==t2]['probability']).values[0]
+    simRel = ( (2 * maxIC ) / (ic1+ic2) ) * (1-prob[prob['terms']==lca]['probability']).values[0]
     return simRel
 #
 #
 #
 def calculateSimRel(prob , ont):
-    # 1. calculate resnik similarity
-    simRes = None
-    if os.path.exists(os.getcwd()+'/Datasets/resnikSimilarity.csv'):
-        simRes = pd.read_csv(os.getcwd()+'/Datasets/resnikSimilarity.csv')
-        simRes.drop(columns=['Unnamed: 0'],inplace=True)
-    else:
-        # 1.1 calculate resnik similarity
-        simRes = calculateSimResnik(prob , ont)
-    #endif
-    simRes.index=simRes.columns# 1.2 fix index
     relSimilarity = pd.DataFrame(0, index=prob['terms'].values.tolist(), columns=prob['terms'].values.tolist(), dtype=np.float64)
     counter=0
     for t1 in relSimilarity.index :
         for t2 in relSimilarity.columns:
             counter+=1
             progressBar(counter , len(relSimilarity.index)**2)
-            relSimilarity.loc[t1, t2]=similarityRelevance(simRes.loc[t1, t2] , t1 , t2 , prob)
+            relSimilarity.loc[t1, t2]=similarityRelevance(t1 , t2 , prob, ont)
         #endfor
+        print(relSimilarity)
     #endfor
     relSimilarity.to_csv(os.getcwd()+'/Datasets/relSimilarity.csv')
     print(relSimilarity)
@@ -467,10 +459,43 @@ def calculateSimRel(prob , ont):
 #
 #
 #
-def similarityIC(t1 , t2 , ic , anc):
-    simIC = ( (2 * ic['probability'][anc]) / (np.log(ic['probability'][t1])+np.log(ic['probability'][t2])) ) * (1- ( 1/(1+ic['probability'][anc]) ) )
-    print(f'Term {t1} , {t2} IC similarity given by common ancestor {anc} is : {simIC}')
-    print('*'*25)
+def similarityIC(t1 , t2 , prob , ont):# its MICA not LCA
+    # 1. find lcas of t1 , t2
+    lcas = ebm.findCommonParents(t1, t2, ont)
+    if lcas==None :# trivial similarity
+        return 0
+    #endif
+    # 2. find maximum ic
+    maxIC = 0
+    maxLCA = None
+    for lca in lcas:
+        lcaIC = -np.log(prob[prob['terms']==lca]['probability']).values[0]
+        if maxIC<=lcaIC:
+            maxIC=lcaIC
+            maxLCA=lca
+        #endif
+    #endfor
+    ic1 = -np.log(prob[prob['terms']==t1]['probability']).values[0]
+    ic2 = -np.log(prob[prob['terms']==t2]['probability']).values[0]
+    pic = -np.log(prob[[prob['terms']==maxLCA]]['probability']).values[0]
+    simIC =( (2 * pic) / (ic1+ic2) ) * ( 1 - (1/(1+pic)) )
+    return simIC
+#
+#
+#
+def calculateSimInfoCoeff(prob , ont):
+    simIC = pd.DataFrame(0, index=prob['terms'].values.tolist(), columns=prob['terms'].values.tolist(), dtype=np.float64)
+    counter=0
+    for t1 in simIC.index :
+        for t2 in simIC.columns:
+            counter+=1
+            progressBar(counter , len(simIC.index)**2)
+            simIC.loc[t1, t2]=similarityIC(simRes.loc[t1, t2] , t1 , t2 , prob)
+        #endfor
+        print(simIC)
+    #endfor
+    simIC.to_csv(os.getcwd()+'/Datasets/simIC.csv')
+    return simIC
 #
 #
 #
