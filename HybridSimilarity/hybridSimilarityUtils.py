@@ -20,61 +20,75 @@ from Parsing import graphUtilities as gu
 #
 #
 #
-def getTransitionProb(ic, ont):
+def getTransitionProb(nonL , frequency , prob , ont):
     # 1. find transition probabilities
+    terms = prob['terms'].values.tolist()
     transitionProb = {}
     tcounter = 0
-    for i in ic['terms'].values.tolist():
+    for t in terms:
         tcounter+=1
         icu.progressBar(tcounter, len(ic['terms'].values.tolist()))
-        children = ont.children(i)
-        validChildren = set(children)&set(ic['terms'].values.tolist())# SOME CHILDREN ARE XCLUDED BECAUSE THEY DONT EXIST IN ANNOTATION DATASET
-        if len(validChildren)==0:# IF LEAF NODE , THEN NO CHILDREN
-            transitionProb[i] = []
-            continue
+        # 1.1 add artificial node
+        if t in nonL:
+            # 1.2 get all children in dataset
+            validChildren = set(terms)&set(list(ont.children(t)))
+            childFrequency = sum(frequency[frequency['terms'].isin(list(validChildren))]['frequency'].values.tolist())
+            # 1.3 create artificial node
+            pFrequency = frequency[frequency['terms']==t]['frequency'].values[0]
+            tProbArt = (pFrequency-childFrequency)/pFrequency# transition probability for artificial node
+            transitionProb[t]=[(str(t)+'_art' , tProbArt), ]# store node and transition probability for each child
+            # 1.4 transition probability for children
+            for c in list(ont.children(t)):
+                cFrequency=frequency[frequency['terms']==c]['frequency'].values[0]
+                transitionProb[t].append((c , (1 - tProbArt) * (cFrequency/childFrequency) ))# add a tuple
+            #endfor
+        else:
+            transitionProb[t] = []
         #endif
-        #  filter the DataFrame for children
-        children_df = ic[ic['terms'].isin(validChildren)]
-        # calculate the total frequency of children
-        Nsum = children_df['frequency'].sum()
-        # calculate the parent frequency without children
-        pfrequency = ic[ic['terms'] == i]['frequency'].values[0]
-        pfrequencySub = pfrequency - Nsum
-        # calculate transition probabilities for each valid child
-        for c in validChildren :
-            if c in transitionProb.keys():
-                transitionProb[c].append( (i , ( (1 - pfrequencySub/pfrequency) * (ic[ic['terms'] == c]['frequency']/Nsum) ).values[0]) )
-            else:
-                transitionProb[c]=[(i , ( (1 - (pfrequencySub/pfrequency) ) * (ic[ic['terms'] == c]['frequency']/Nsum) ).values[0]) , ]
-        #endfor
-    #endfor
-    '''
-    for i in transitionProb.keys():
-        for item in transitionProb[i]:
-            print(f'Transition Probabilities from term {i} to term {item[0]} : {item[1]}')
-        #endfor
-    #endfor
-    '''
     return transitionProb
 #
 #
 #
-def integrated_similarity_measure(lterms ,ic , ont):
+def getNonLeaves(terms, ont):
+    nonL = []
+    # 1. for each term
+    for t in terms:
+        # 2. get immidiate children
+        imChildren = list(ont.children(t))
+        if len(imChildren)==0:
+            continue
+        #endif
+        if len(list(set(terms)&set(imChildren)))==0:
+            continue
+        #endif
+        nonL.append(t)
+    #endfor
+    return nonL
+#
+#
+#
+def integratedSM(frequency , prob , ont):
+    # 0. extract terms from gene data
+    terms=prob['terms'].values.tolist()
+    # 1. find non-leaf nodes
+    nonL = getNonLeaves(terms, ont)
     P = None
     if os.path.exists('/home/d4gl0s/diploma/Experiment/Datasets/transitionProb.csv'):
         P = pd.read_csv('/home/d4gl0s/diploma/Experiment/Datasets/transitionProb.csv')
-        P.index=ic['terms'].values.tolist()
+        P.index=P.columns
     else:
-        # 1. get transition prob for each parent-child
+        # 2. get transition prob for each parent-child & add artificial nodes
         tp = getTransitionProb(ic, ont)
-        # 2. initialize matrix P
-        P = pd.DataFrame(0, index=ic['terms'].values.tolist(), columns=ic['terms'].values.tolist(), dtype=np.float64)
+        # 2.1 get artificial nodes names
+        artNodeNames = [str(i)+'_art' for i in nonL]
+        # 2.3 initialize matrix P
+        P = pd.DataFrame(0, index=terms+artNodeNames, columns=terms+artNodeNames, dtype=np.float64)
         # 3. construct matrix P (filling rows)
         tcounter = 0
-        for i in ic['terms'].values.tolist():# 3.1 for each column term
+        for i in terms+artNodeNames:# 3.1 for each column term
             tcounter+=1
-            icu.progressBar(tcounter , len(ic['terms'].values.tolist())**2)
-            for j in ic['terms'].values.tolist():# 3.2 for each row term
+            icu.progressBar(tcounter , len(terms+artNodeNames)**2)
+            for j in terms+artNodeNames:# 3.2 for each row term
                 tcounter+=1
                 # 3.2.1 get roots to see if there is a reachable path
                 #rooti , namespacei = findRoot(i,ont)
