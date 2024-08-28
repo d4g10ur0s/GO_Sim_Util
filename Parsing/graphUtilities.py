@@ -76,7 +76,7 @@ def read_json_file(file_path):
 #
 #
 #
-def allAncestors(t , ont , G=None):
+def allAncestors(t , ont):
     '''
     Input : id of a go term
             ontology graph
@@ -89,39 +89,21 @@ def allAncestors(t , ont , G=None):
     Output : a dictionary with all ancestors and distance from them
     '''
     dists = {}
-    # 1. get root term
-    root , namespace = findRoot(t,ont)
-    # 2.  get all paths from root to term
-    if G==None :
-        G = ont.get_graph()
-    paths = list(nx.all_simple_paths(G , root , t))
-    # 3. for each path get uncommon nodes only
-    a = set()
-    rootDist = 10e10
-    for p in paths:# 4.1 add minimum path from root to t
-        if len(p)<rootDist:
-            rootDist = len(p)
-        #endif
-        a = a|set(p)
-    #endfor
-    #print(f'Uncommon nodes : {a}')
-    dists[rootDist] = [root]# 4.2 add minimum dist to root
-    # 4. exclude t and root
-    a.remove(t)
-    a.remove(root)
-    # 5. for each parent find the minimum path to t
-    for anc in a :
-        path , ancDist = ebm.findMinimumPath(anc , t , G)
-        if ancDist in dists.keys():# 5.3 add dist with the correct form
-            dists[ancDist].append(anc)
-        else :
-            dists[ancDist] = [anc]
-        #endif
-    #endfor
-    #print(dists)
-    anc = (dists , list(a) , namespace)
-    return anc
-
+    dist = 1
+    parents=list(ont.parents(t))
+    while len(parents)>0:
+        dists[dist]=parents
+        dist+=1
+        tparents=[]
+        for p in parents:
+            tparents+=list(ont.parents(p))
+        #endfor
+        parents=list(set(tparents))
+    #endwhile
+    return dists
+#
+#
+#
 def allAncestorsAllTerms(terms , ont):
     '''
     Input : terms , ontology
@@ -148,18 +130,7 @@ def allAncestorsAllTerms(terms , ont):
     for t in terms :
         counter+=1
         icu.progressBar(counter, len(terms))
-        pdist = {}
-        dist = 1
-        parents=list(ont.parents(t))
-        while len(parents)>0:
-            pdist[dist]=parents
-            dist+=1
-            tparents=[]
-            for p in parents:
-                tparents+=list(ont.parents(p))
-            #endfor
-            parents=list(set(tparents))
-        #endwhile
+        pdist = allAncestors(t , ont)
         anc[t]=pdist
     #endfor
     return anc

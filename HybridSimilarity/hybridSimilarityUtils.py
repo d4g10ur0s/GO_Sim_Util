@@ -20,14 +20,14 @@ from Parsing import graphUtilities as gu
 #
 #
 #
-def getTransitionProb(nonL , frequency , prob , ont):
+def getTransitionProb(nonL , frequency , ont):
     # 1. find transition probabilities
-    terms = prob['terms'].values.tolist()
+    terms = frequency['terms'].values.tolist()
     transitionProb = {}
     tcounter = 0
     for t in terms:
         tcounter+=1
-        icu.progressBar(tcounter, len(ic['terms'].values.tolist()))
+        icu.progressBar(tcounter, len(frequency['terms'].values.tolist()))
         # 1.1 add artificial node
         if t in nonL:
             # 1.2 get all children in dataset
@@ -36,15 +36,18 @@ def getTransitionProb(nonL , frequency , prob , ont):
             # 1.3 create artificial node
             pFrequency = frequency[frequency['terms']==t]['frequency'].values[0]
             tProbArt = (pFrequency-childFrequency)/pFrequency# transition probability for artificial node
-            transitionProb[t]=[(str(t)+'_art' , tProbArt), ]# store node and transition probability for each child
+            transitionProb[t]={}
+            transitionProb[t][str(t)+'_art']=tProbArt# store node and transition probability for each child
             # 1.4 transition probability for children
-            for c in list(ont.children(t)):
+            for c in list(validChildren):
                 cFrequency=frequency[frequency['terms']==c]['frequency'].values[0]
-                transitionProb[t].append((c , (1 - tProbArt) * (cFrequency/childFrequency) ))# add a tuple
+                transitionProb[t][c]=(1 - tProbArt) * (cFrequency/childFrequency)# add in dictionary
             #endfor
         else:
-            transitionProb[t] = []
+            pass# do nothing for children
         #endif
+        print(transitionProb)
+    #endfor
     return transitionProb
 #
 #
@@ -73,49 +76,44 @@ def integratedSM(frequency , prob , ont):
     # 1. find non-leaf nodes
     nonL = getNonLeaves(terms, ont)
     P = None
+    # 2. get transition prob for each parent-child & add artificial nodes
     if os.path.exists('/home/d4gl0s/diploma/Experiment/Datasets/transitionProb.csv'):
+        # 2.1 transition probability is already calculated
         P = pd.read_csv('/home/d4gl0s/diploma/Experiment/Datasets/transitionProb.csv')
         P.index=P.columns
     else:
-        # 2. get transition prob for each parent-child & add artificial nodes
-        tp = getTransitionProb(ic, ont)
-        # 2.1 get artificial nodes names
-        artNodeNames = [str(i)+'_art' for i in nonL]
-        # 2.3 initialize matrix P
-        P = pd.DataFrame(0, index=terms+artNodeNames, columns=terms+artNodeNames, dtype=np.float64)
+        # 2.1 transition probability has not yet calculated
+        # get transition probabilities and artificial nodes based on non-leaves
+        tProb = getTransitionProb(nonL, frequency , ont)
+        # 2.2 initialize matrix P
+        artNodeNames = [str(i)+'_art' for i in nonL]# get artificial nodes names
+        P = pd.DataFrame(0, index=terms+artNodeNames, columns=terms+artNodeNames, dtype=np.float64)# P is a n x n matrix
+        print(P)
         # 3. construct matrix P (filling rows)
         tcounter = 0
-        for i in terms+artNodeNames:# 3.1 for each column term
+        for i in terms+artNodeNames:# 3.1 for each row term
             tcounter+=1
             icu.progressBar(tcounter , len(terms+artNodeNames)**2)
-            for j in terms+artNodeNames:# 3.2 for each row term
+            for j in terms+artNodeNames:# 3.2 for each column term
                 tcounter+=1
-                # 3.2.1 get roots to see if there is a reachable path
-                #rooti , namespacei = findRoot(i,ont)
-                #rootj , namespacej = findRoot(j,ont)
-                if i==j:# 3.2.2 if same term , then value is 1
+                if i==j:# 3.3 if same term , then value is 1
                     P.loc[i , j]=1
-                #elif not (rooti==rootj):# 3.2.3 there is no reachable path
-                #    P.loc[i, j]=0
-                else:# 3.2.4 find transition probability from i to j
-                    p = 0
-                    if i in tp.keys():# roots have no transition prob
-                        for anc in tp[i]:
-                            if anc[0]==j:
-                                p=anc[1]
-                                break
-                            #endif
-                        #endfor
+                else:# 3.4 find transition probability , parent is in rows
+                    tParent=tProb[j]
+                    if j in list(tParent.keys()):# 3.4.1 if j is a child of tParent
+                        P.loc[i , j]=tParent[j]# add the transition prob
+                    else:# 3.4.2 if j is not a child of tParent
+                        P.loc[i , j]=0# transition prob is 0
                     #endif
-                    P.loc[i , j]=p
                 #endif
             #endfor
+            print(P)
         #endfor
         P.to_csv('/home/d4gl0s/diploma/Experiment/Datasets/transitionProb.csv',index=False)
     #endif
     # 4. construct matrix W rows are leaf nodes and
-    identity_matrix = np.eye( len(ic['terms'].values.tolist()) )
-    W = pd.DataFrame(identity_matrix, index=ic['terms'].values.tolist(), columns=ic['terms'].values.tolist(),dtype=np.float64)
+    identity_matrix = np.eye( len(P.index) )
+    W = pd.DataFrame(identity_matrix, index=P.index, columns=P.index,dtype=np.float64)
     epsilon = .001
     W_star = W
     while 1 :
@@ -125,6 +123,7 @@ def integratedSM(frequency , prob , ont):
             break
     #endwhile
     W=W_star
+    print(W)
     # 5. get leaves - parents matrix
     W_ll = W.loc[list(lterms)][ic['terms'].tolist()]
     # 6. Get leaves hosted similarity matrix

@@ -227,17 +227,18 @@ def findLCAsAnc(t1, t2):
 #
 #
 def getAllParents(t, ont):
-    p = []
-    parents=ont.parents(t1)
+    ret = list()
+    parents=list(ont.parents(t))
     while len(parents)>0:
+        print(str(parents))
         tparents=[]
         for p in parents:
             tparents+=list(ont.parents(p))
         #endfor
-        p+=parents
-        parents=tparents
+        ret.extend(parents)
+        parents=list(set(tparents))
     #endwhile
-    return set(p)
+    return set(ret)
 #
 #
 #

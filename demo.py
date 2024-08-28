@@ -13,6 +13,37 @@ from Parsing import parsing as pu
 from Parsing import graphUtilities as gu
 from EdgeBasedSimilarity import edgeBasedMethods as ebm
 from InformationContentSimilarity import informationContentUtility as icu
+from HybridSimilarity import hybridSimilarityUtils as hsu
+#
+#
+#
+def hybridMethodsMenu(geneData, ont):
+    menu = '''
+    ** Information Content Based Methods **
+    1. Integrated Similarity Measure
+    '''
+    # 0. get information content
+    prob = icu.calculateInformationContent(geneData , ont)
+    prob.columns = ['terms' , 'probability']
+    # 0.1 get frequency
+    tFrequency = pd.read_csv(os.getcwd()+'/Datasets/termFrequency.csv')
+    tFrequency.columns=['terms' , 'frequency']
+    print(tFrequency)
+    choice = None
+    while 1 :
+        print(menu)
+        try :
+            choice = int(input('Select a type of methods : '))
+            if choice < 1 or choice > 2:
+                raise ValueError
+            else:
+                break
+            #endif
+        except ValueError :
+            print('Give a valid integer !')
+    #endwhile
+    if choice==1 :
+        hsu.integratedSM(tFrequency , prob , ont)
 #
 #
 #
@@ -156,6 +187,8 @@ def main():
             edgeBasedMethodsMenu(geneData , ont)
         if choice==2:
             icBasedMethodsMenu(geneData, ont)
+        if choice==3:
+            hybridMethodsMenu(geneData , ont)
         #except ValueError :
         #    print('Give a valid integer !')
     #endwhile
