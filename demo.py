@@ -28,7 +28,6 @@ def hybridMethodsMenu(geneData, ont):
     # 0.1 get frequency
     tFrequency = pd.read_csv(os.getcwd()+'/Datasets/termFrequency.csv')
     tFrequency.columns=['terms' , 'frequency']
-    print(tFrequency)
     choice = None
     while 1 :
         print(menu)

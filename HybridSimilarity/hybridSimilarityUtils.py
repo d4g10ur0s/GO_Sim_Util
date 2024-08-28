@@ -46,7 +46,6 @@ def getTransitionProb(nonL , frequency , ont):
         else:
             pass# do nothing for children
         #endif
-        print(transitionProb)
     #endfor
     return transitionProb
 #
@@ -70,9 +69,9 @@ def getNonLeaves(terms, ont):
 #
 #
 #
-def integratedSM(frequency , prob , ont):
+def integratedSM(frequency, prob , ont):
     # 0. extract terms from gene data
-    terms=prob['terms'].values.tolist()
+    terms=frequency['terms'].values.tolist()
     # 1. find non-leaf nodes
     nonL = getNonLeaves(terms, ont)
     P = None
@@ -88,7 +87,6 @@ def integratedSM(frequency , prob , ont):
         # 2.2 initialize matrix P
         artNodeNames = [str(i)+'_art' for i in nonL]# get artificial nodes names
         P = pd.DataFrame(0, index=terms+artNodeNames, columns=terms+artNodeNames, dtype=np.float64)# P is a n x n matrix
-        print(P)
         # 3. construct matrix P (filling rows)
         tcounter = 0
         for i in terms+artNodeNames:# 3.1 for each row term
@@ -98,16 +96,17 @@ def integratedSM(frequency , prob , ont):
                 tcounter+=1
                 if i==j:# 3.3 if same term , then value is 1
                     P.loc[i , j]=1
-                else:# 3.4 find transition probability , parent is in rows
-                    tParent=tProb[j]
+                elif i in tProb.keys():# 3.4 find transition probability , parent is in rows
+                    tParent=tProb[i]
                     if j in list(tParent.keys()):# 3.4.1 if j is a child of tParent
                         P.loc[i , j]=tParent[j]# add the transition prob
                     else:# 3.4.2 if j is not a child of tParent
                         P.loc[i , j]=0# transition prob is 0
                     #endif
+                else:# 3.5 term i is not a parent term
+                    P.loc[i , j]=0# transition prob is 0
                 #endif
             #endfor
-            print(P)
         #endfor
         P.to_csv('/home/d4gl0s/diploma/Experiment/Datasets/transitionProb.csv',index=False)
     #endif
@@ -123,23 +122,25 @@ def integratedSM(frequency , prob , ont):
             break
     #endwhile
     W=W_star
-    print(W)
     # 5. get leaves - parents matrix
-    W_ll = W.loc[list(lterms)][ic['terms'].tolist()]
+    lterms = list(set(P.columns)-set(nonL))
+    W_ll = W.loc[list(lterms)][P.columns]
+    print(W_ll)
     # 6. Get leaves hosted similarity matrix
     HSM = None
     if os.path.exists('/home/d4gl0s/diploma/Experiment/Datasets/HSM.csv'):
         HSM = pd.read_csv('/home/d4gl0s/diploma/Experiment/Datasets/HSM.csv')
         HSM.index=ic['terms'].values.tolist()
     else:
-        HSM = pd.DataFrame(0, index=ic['terms'].values.tolist(), columns=ic['terms'].values.tolist(), dtype=np.float64)
+        HSM = pd.DataFrame(0, index=lterms, columns=lterms, dtype=np.float64)
         tcounter=0
         G=ont.get_graph()
-        for i in ic['terms'].values.tolist() :
-            for j in ic['terms'].values.tolist() :
+        for i in HSM.index :
+            for j in HSM.columns :
                 tcounter+=1
-                icu.progressBar(tcounter , len(ic['terms'].values.tolist())**2)
-                HSM.loc[i,j] = icu.simResnikMICA(i,j,ont,ic,G=G)
+                icu.progressBar(tcounter , len(HSM.index)**2)
+                HSM.loc[i,j] = icu.simResnikMICA(i,j,ont,prob,G=G)
+                input(HSM.loc[i,j])
             #endfor
         #endfor
         HSM.to_csv('/home/d4gl0s/diploma/Experiment/Datasets/HSM.csv')

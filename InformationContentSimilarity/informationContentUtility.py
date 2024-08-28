@@ -230,7 +230,7 @@ def termFrequency(geneData , ancestors , ont ):
 #
 #
 #
-def l_MICA(t1 , t2 , ont , ic):
+def l_MICA(t1 , t2 , ont , prob):
     # 1. find all parents
     parents_1 = getAllParents(t1 , ont)
     parents_2 = getAllParents(t2 , ont)
@@ -238,7 +238,7 @@ def l_MICA(t1 , t2 , ont , ic):
     commonParents = set(parents_1)&set(parents_2)
     if len(commonParents)==0:
         return 0
-    commonParentsIC = ic[ic['terms'].isin(commonParents)]['IC']
+    commonParentsIC = -np.log(prob[prob['terms'].isin(commonParents)]['probability'])
     return commonParentsIC.max()
 #
 #
@@ -255,6 +255,7 @@ def simResnikMICA(t1, t2 , ont , df, G=None):
         return 0
     '''
     mica = l_MICA(t1 , t2 , ont , df)
+    print(mica)
     return mica
 #
 #
