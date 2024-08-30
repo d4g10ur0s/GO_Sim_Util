@@ -21,6 +21,7 @@ def hybridMethodsMenu(geneData, ont):
     menu = '''
     ** Information Content Based Methods **
     1. Integrated Similarity Measure
+    2. Hybrid Relative Specificity Similarity
     '''
     # 0. get information content
     prob = icu.calculateInformationContent(geneData , ont)
@@ -33,7 +34,7 @@ def hybridMethodsMenu(geneData, ont):
         print(menu)
         try :
             choice = int(input('Select a type of methods : '))
-            if choice < 1 or choice > 2:
+            if choice < 1 or choice > 4:
                 raise ValueError
             else:
                 break
@@ -43,6 +44,8 @@ def hybridMethodsMenu(geneData, ont):
     #endwhile
     if choice==1 :
         hsu.integratedSM(tFrequency , prob , ont)
+    elif choice==2:
+        hsu.calculateHRSS(prob , ont)
 #
 #
 #

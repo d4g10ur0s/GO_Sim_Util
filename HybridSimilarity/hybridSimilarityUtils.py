@@ -113,7 +113,7 @@ def integratedSM(frequency, prob , ont):
     # 4. construct matrix W rows are leaf nodes and
     identity_matrix = np.eye( len(P.index) )
     W = pd.DataFrame(identity_matrix, index=P.index, columns=P.index,dtype=np.float64)
-    epsilon = .001
+    epsilon = 1e-5
     W_star = W
     while 1 :
         W=W_star
@@ -124,15 +124,14 @@ def integratedSM(frequency, prob , ont):
     W=W_star
     # 5. get leaves - parents matrix
     lterms = list(set(P.columns)-set(nonL))
-    W_ll = W.loc[list(lterms)][P.columns]
-    print(W_ll)
     # 6. Get leaves hosted similarity matrix
     HSM = None
     if os.path.exists('/home/d4gl0s/diploma/Experiment/Datasets/HSM.csv'):
         HSM = pd.read_csv('/home/d4gl0s/diploma/Experiment/Datasets/HSM.csv')
-        HSM.index=ic['terms'].values.tolist()
+        HSM.drop(columns=['Unnamed: 0'],inplace=True)
+        HSM.index=lterms
     else:
-        HSM = pd.DataFrame(0, index=lterms, columns=lterms, dtype=np.float64)
+        HSM = pd.DataFrame(0, index=P.index, columns=P.columns, dtype=np.float64)
         tcounter=0
         G=ont.get_graph()
         for i in HSM.index :
@@ -140,25 +139,25 @@ def integratedSM(frequency, prob , ont):
                 tcounter+=1
                 icu.progressBar(tcounter , len(HSM.index)**2)
                 HSM.loc[i,j] = icu.simResnikMICA(i,j,ont,prob,G=G)
-                input(HSM.loc[i,j])
             #endfor
         #endfor
         HSM.to_csv('/home/d4gl0s/diploma/Experiment/Datasets/HSM.csv')
     #endif
-    RWC = (W.loc[ic['terms'].tolist()][list(lterms)].dot(HSM.loc[lterms][lterms])).dot(W.loc[list(lterms)][ic['terms'].tolist()])
+    RWC = (((W.loc[lterms , list(nonL)]).T).dot(HSM.loc[lterms,lterms])).dot(W.loc[lterms , list(nonL)])
+    print(RWC)
     ISM = .5 * (RWC + HSM)
     return ISM
 #
 #
 #
-def hybridRSS(t1, t2 , ont, ic, G=None):
+def hybridRSS(t1, t2 , ont, prob, G=None):
     if G==None:
         G=ont.get_graph()
     #endif
     # 1. find MICA
     print('Calculating alpha')
-    dists_1 , anc1 , namespace1 = gu.allAncestors(t1 , ont , G=None)
-    dists_2 , anc2 , namespace2 = gu.allAncestors(t1 , ont , G=None)
+    anc1 = gu.getAllParents(t1 , ont)
+    anc2 = gu.getAllParents(t2 , ont)
     # 1.2 get all ancestors
     commonAnc = set(anc1)&set(anc2)
     # 1.3 find the MOST INFORMATIVE
@@ -166,57 +165,86 @@ def hybridRSS(t1, t2 , ont, ic, G=None):
     for a in commonAnc :
         if mica==None :
             mica=a
-        elif ic[ic['terms']==mica]['IC'].values[0]<ic[ic['terms']==a]['IC'].values[0] :
+        elif -np.log(prob[prob['terms']==mica]['probability'].values[0])<-np.log(prob[prob['terms']==a]['probability'].values[0]) :
             mica=a
         #endif
     #endfor
-    alpha = ic[ic['terms']==mica]['IC'].values[0]
+    alpha = None
+    if mica==None:
+        return 0# there are no common ancestors , 0 similarity
+    else:
+        alpha = -np.log(prob[prob['terms']==mica]['probability'].values[0])
     # 2. find MIL
     print('Calculating beta')
-    dist_1 , n1 = gu.findAllChildrenInGraph(t1 , ont)
-    dist_2 , n2 = gu.findAllChildrenInGraph(t2 , ont)
+    leaves_1 = gu.getAllLeaves(t1 , ont)
+    leaves_2 = gu.getAllLeaves(t2 , ont)
     beta = None
-    if n1==0 and n2==0 :
+    if len(leaves_1)==0 and len(leaves_2)==0 :
         beta=0
-    elif n1==0 :
+    elif len(leaves_1)==0 :
         # get t2's mil
-        index_2 = list(dist_2.keys())[-1]
-        leaves_2 = dist_2[index_2]
-        mil_2 = ic[ic['terms'].isin(leaves_2)]['IC'].max()
+        mil_2 = prob[prob['terms'].isin(leaves_2)]['probability'].max()
         if np.isnan(mil_2) :# some leaves do not exist , because of handling subontology
             beta=0
         else:
-            beta = ((ic[ic['terms']==t2]['IC'] - mil_2)/2).values[0]
-    elif n2==0 :
+            mil_2=-np.log(mil_2)
+            beta = ((-np.log(prob[prob['terms']==t2]['probability']) - mil_2)/2).values[0]
+    elif len(leaves_2)==0 :
         # get t1's mil
-        index_1 = list(dist_1.keys())[-1]
-        leaves_1 = dist_1[index_1]
-        mil_1 = ic[ic['terms'].isin(leaves_1)]['IC'].max()
+        mil_1 = prob[prob['terms'].isin(leaves_1)]['probability'].max()
         if np.isnan(mil_1) :# some leaves do not exist , because of handling subontology
             beta=0
         else:
-            beta = ((ic[ic['terms']==t1]['IC'] - mil_1)/2).values[0]
+            mil_1=-np.log(mil_1)
+            beta = ((-np.log(prob[prob['terms']==t1]['probability']) - mil_1)/2).values[0]
     else:
         # get t1's mil
-        index_1 = list(dist_1.keys())[-1]
-        leaves_1 = dist_1[index_1]
-        mil_1 = ic[ic['terms'].isin(leaves_1)]['IC'].max()
+        mil_1 = prob[prob['terms'].isin(leaves_1)]['probability'].max()
         if np.isnan(mil_1) :# some leaves do not exist , because of handling subontology
             mil_1=0
+        else:
+            mil_1=-np.log(mil_1)
+        #endif
         # get t2's mil
-        index_2 = list(dist_2.keys())[-1]
-        leaves_2 = dist_2[index_2]
-        mil_2 = ic[ic['terms'].isin(leaves_2)]['IC'].max()
+        mil_2 = prob[prob['terms'].isin(leaves_2)]['probability'].max()
         if np.isnan(mil_2):# some leaves do not exist , because of handling subontology
             mil_2=0
+        else:
+            mil_2=-np.log(mil_2)
+        #endif
         # calculate beta
-        beta = (((ic[ic['terms']==t1]['IC'] - mil_1)+(ic[ic['terms']==t2]['IC'] - mil_2))/2).values[0]
+        beta = ( ((-np.log(prob[prob['terms']==t1]['probability']) - mil_1)+(-np.log(prob[prob['terms']==t2]['probability']) - mil_2) )/2 ).values[0]
     # 3. calculate relevant distance from MICA
     print('Calculating gamma')
-    G = ont.get_graph()
     path_1 , rdist_1 = ebm.findMinimumPath(mica , t1 , G)
     path_2 , rdist_2 = ebm.findMinimumPath(mica , t2 , G)
     gamma = rdist_1 + rdist_2
     sim_HRSS = ( 1/(1+gamma) ) * ( alpha/(alpha + beta) )
     print(f'HRSS of terms {t1} , {t2} : {sim_HRSS}')
     return sim_HRSS
+#
+#
+#
+def calculateHRSS(prob ,ont):
+    G=ont.get_graph()# get ontology graph
+    # 1. create the matrix if it does not exist
+    if os.path.exists('/home/d4gl0s/diploma/Experiment/Datasets/HRSS.csv'):
+        HRSS = pd.read_csv('/home/d4gl0s/diploma/Experiment/Datasets/HRSS.csv')
+        HRSS.drop(columns=['Unnamed: 0'],inplace=True)
+        HRSS.index=lterms
+    else:
+        HRSS = pd.DataFrame(0, index=prob['terms'].values.tolist(), columns=prob['terms'].values.tolist(), dtype=np.float64)
+        # calculate hrss
+        tcounter=0
+        for i in HRSS.index:
+            for j in HRSS.columns:
+                tcounter+=1
+                icu.progressBar(tcounter , len(HRSS.index)**2)
+                HRSS.loc[i,j]=hybridRSS(i, j , ont, prob)
+            #endfor
+        #endfor
+        # save in csv format
+        HRSS.to_csv('/home/d4gl0s/diploma/Experiment/Datasets/HRSS.csv')
+    #endif
+    print(HRSS)
+    return HRSS

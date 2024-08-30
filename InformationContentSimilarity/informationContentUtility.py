@@ -35,21 +35,6 @@ def progressBar(count_value, total, suffix=''):
 #
 #
 #
-def getAllParents(t , ont):
-    tparents = ont.parents(t)
-    parents = tparents
-    while len(tparents)>0:
-        temp = []
-        for p in tparents :
-            temp+=ont.parents(p)
-        #endfor
-        tparents=temp
-        parents+=tparents
-    #endwhile
-    return parents
-#
-#
-#
 def calcICT(terms, ont):
     # 0. get roots
     rootNodes={}
@@ -230,33 +215,57 @@ def termFrequency(geneData , ancestors , ont ):
 #
 #
 #
-def l_MICA(t1 , t2 , ont , prob):
+def l_MICA(t1 , t2 , ont , prob, art=[False,False]):
     # 1. find all parents
-    parents_1 = getAllParents(t1 , ont)
-    parents_2 = getAllParents(t2 , ont)
+    parents_1 = gu.getAllParents(t1 , ont)
+    parents_2 = gu.getAllParents(t2 , ont)
     # 2. find all common parents
-    commonParents = set(parents_1)&set(parents_2)
-    if len(commonParents)==0:
+    commonParents = list(set(parents_1)&set(parents_2))
+    # check if there is one artificial node
+    if art[0]:# t1 is the parent of an artificial node
+        if t1 in parents_2:# t1 is candidate for mica
+            commonParents.append(t1)
+        #endif
+    #endif
+    if art[1]:# t2 is the parent of an artificial node
+        if t2 in parents_1:# t2 is candidate for mica
+            commonParents.append(t2)
+        #endif
+    #endif
+    commonParents=set(commonParents)
+    if len(commonParents)==0:# no common parents , 0 reachability , 0 similarity
         return 0
     commonParentsIC = -np.log(prob[prob['terms'].isin(commonParents)]['probability'])
     return commonParentsIC.max()
 #
 #
 #
-def simResnikMICA(t1, t2 , ont , df, G=None):
+def simResnikMICA(t1, t2 , ont , df, G=None):# this is used for Integrated Similarity Measure
     if t1==t2:
         return 1
-    # 0. get roots
-    '''
-    root1 ,namespace1 = gu.findRoot(t1, ont)
-    root2 ,namespace2 = gu.findRoot(t2, ont)
-    if not root1==root2 :
-        print('No common root .')
-        return 0
-    '''
-    mica = l_MICA(t1 , t2 , ont , df)
-    print(mica)
-    return mica
+    # check if it is an artificial node
+    if '_art' in t1 and '_art' in t2:# make the comparison using parent terms
+        p1 = t1.replace('_art' , '')
+        p2 = t2.replace('_art' , '')
+        mica = l_MICA(p1 , p2 , ont , df)# there is no chance that p1==p2
+        return mica
+    elif '_art' in t1:# if only one is artificial , then take its parent
+        p1=t1.replace('_art', '')
+        if t2==p1:
+            return 1
+        else:
+            mica = l_MICA(p1 , t2 , ont , df, [True,False])
+            return mica
+    elif '_art' in t2:
+        p2=t2.replace('_art', '')
+        if t1==p2:
+            return 1
+        else:
+            mica = l_MICA(t1 , p2 , ont , df , [False,True])
+            return mica
+    else:
+        mica = l_MICA(t1 , t2 , ont , df)
+        return mica
 #
 #
 #
@@ -265,8 +274,8 @@ def diShin(t1 , t2 , prob , ont, G=None):
         G=ont.get_graph()
     #endif
     # 1. find all common ancestors
-    anc_1 = getAllParents(t1, ont)
-    anc_2 = getAllParents(t2, ont)
+    anc_1 = gu.getAllParents(t1, ont)
+    anc_2 = gu.getAllParents(t2, ont)
     commonParents = (set(anc_1)&set(anc_2))
     if len(commonParents)==0 :
         return 0 , {}
@@ -323,8 +332,8 @@ def calculateDiShin(prob , ont):
 #
 def simGic(t1 , t2 , prob , ont):
     # 1. get all parents for t1
-    anc_1 = getAllParents(t1, ont)
-    anc_2 = getAllParents(t2, ont)
+    anc_1 = gu.getAllParents(t1, ont)
+    anc_2 = gu.getAllParents(t2, ont)
     commonParents = (set(anc_1)&set(anc_2))|set([t1 , t2])
     allParents = set(anc_1)|set(anc_2)|set([t1 , t2])
     # 2. calculate similarity based on all and common parents

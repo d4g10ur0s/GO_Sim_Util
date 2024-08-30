@@ -41,6 +41,41 @@ def findRoot(t,ont):
 #
 #
 #
+def getAllParents(t , ont):
+    tparents = ont.parents(t)
+    parents = tparents
+    while len(tparents)>0:
+        temp = []
+        for p in tparents :
+            temp+=ont.parents(p)
+        #endfor
+        tparents=temp
+        parents+=tparents
+    #endwhile
+    return parents
+#
+#
+#
+def getAllLeaves(t , ont):
+    tchildren = ont.children(t)
+    children = tchildren
+    leaves=[]
+    while len(tchildren)>0:
+        temp = []
+        for p in tchildren :
+            tc=ont.children(p)
+            if len(tc)==0:# its a leaf node , no children
+                leaves.append(p)
+            #endif
+            temp+=tc
+        #endfor
+        tchildren=temp
+        children+=tchildren
+    #endwhile
+    return leaves
+#
+#
+#
 def findAllChildrenInGraph(t , ont):
     dists = {}
     n=0#number of children in ontology graph
