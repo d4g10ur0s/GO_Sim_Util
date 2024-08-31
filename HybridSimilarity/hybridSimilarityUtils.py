@@ -155,7 +155,7 @@ def hybridRSS(t1, t2 , ont, prob, G=None):
         G=ont.get_graph()
     #endif
     # 1. find MICA
-    print('Calculating alpha')
+    #print('Calculating alpha')
     anc1 = gu.getAllParents(t1 , ont)
     anc2 = gu.getAllParents(t2 , ont)
     # 1.2 get all ancestors
@@ -175,7 +175,7 @@ def hybridRSS(t1, t2 , ont, prob, G=None):
     else:
         alpha = -np.log(prob[prob['terms']==mica]['probability'].values[0])
     # 2. find MIL
-    print('Calculating beta')
+    #print('Calculating beta')
     leaves_1 = gu.getAllLeaves(t1 , ont)
     leaves_2 = gu.getAllLeaves(t2 , ont)
     beta = None
@@ -184,43 +184,50 @@ def hybridRSS(t1, t2 , ont, prob, G=None):
     elif len(leaves_1)==0 :
         # get t2's mil
         mil_2 = prob[prob['terms'].isin(leaves_2)]['probability'].max()
-        if np.isnan(mil_2) :# some leaves do not exist , because of handling subontology
-            beta=0
+        mil_2=-np.log(mil_2)
+        if np.isnan(mil_2) :# probability is to small , make beta = 1
+            beta=1
         else:
-            mil_2=-np.log(mil_2)
             beta = ((-np.log(prob[prob['terms']==t2]['probability']) - mil_2)/2).values[0]
     elif len(leaves_2)==0 :
         # get t1's mil
         mil_1 = prob[prob['terms'].isin(leaves_1)]['probability'].max()
-        if np.isnan(mil_1) :# some leaves do not exist , because of handling subontology
-            beta=0
+        mil_1=-np.log(mil_1)
+        if np.isnan(mil_1) :# probability is to small , make beta = 1
+            beta=1
         else:
-            mil_1=-np.log(mil_1)
             beta = ((-np.log(prob[prob['terms']==t1]['probability']) - mil_1)/2).values[0]
     else:
         # get t1's mil
         mil_1 = prob[prob['terms'].isin(leaves_1)]['probability'].max()
-        if np.isnan(mil_1) :# some leaves do not exist , because of handling subontology
-            mil_1=0
+        if np.isnan(mil_1) :# probability is to small , make beta = 1
+            mil_1=1
         else:
             mil_1=-np.log(mil_1)
         #endif
         # get t2's mil
         mil_2 = prob[prob['terms'].isin(leaves_2)]['probability'].max()
-        if np.isnan(mil_2):# some leaves do not exist , because of handling subontology
-            mil_2=0
+        if np.isnan(mil_2):# probability is to small , make beta = 1
+            mil_2=1
         else:
             mil_2=-np.log(mil_2)
         #endif
         # calculate beta
         beta = ( ((-np.log(prob[prob['terms']==t1]['probability']) - mil_1)+(-np.log(prob[prob['terms']==t2]['probability']) - mil_2) )/2 ).values[0]
     # 3. calculate relevant distance from MICA
-    print('Calculating gamma')
-    path_1 , rdist_1 = ebm.findMinimumPath(mica , t1 , G)
-    path_2 , rdist_2 = ebm.findMinimumPath(mica , t2 , G)
+    #print('Calculating gamma')
+    if np.isnan(beta):# probability is to small , make beta = 1
+        beta=1
+    #endif
+    path_1 , rdist_1 = ebm.findMinimumPath(list(nx.all_simple_paths(G ,mica ,t1)))
+    path_2 , rdist_2 = ebm.findMinimumPath(list(nx.all_simple_paths(G ,mica ,t2)))
     gamma = rdist_1 + rdist_2
+    if abs(alpha)==0:
+        return 0
+    #endif
     sim_HRSS = ( 1/(1+gamma) ) * ( alpha/(alpha + beta) )
-    print(f'HRSS of terms {t1} , {t2} : {sim_HRSS}')
+    #endif
+    #print(f'HRSS of terms {t1} , {t2} : {sim_HRSS}')
     return sim_HRSS
 #
 #
@@ -240,7 +247,10 @@ def calculateHRSS(prob ,ont):
             for j in HRSS.columns:
                 tcounter+=1
                 icu.progressBar(tcounter , len(HRSS.index)**2)
-                HRSS.loc[i,j]=hybridRSS(i, j , ont, prob)
+                if i==j:
+                    HRSS.loc[i,j]=1
+                else:
+                    HRSS.loc[i,j]=hybridRSS(i, j , ont, prob , G)
             #endfor
         #endfor
         # save in csv format
@@ -248,3 +258,61 @@ def calculateHRSS(prob ,ont):
     #endif
     print(HRSS)
     return HRSS
+#
+#
+#
+def calculateSemanticWeights(prob , ont):
+    # 1. calculate knowledge for all terms
+    K=prob.copy()
+    K['probability']=-1/np.log(K['probability'])
+    # 2. calculate semantic weights for all terms
+    SW=K.copy()
+    SW['probability']=1/(1+np.exp(-SW['probability']))
+    # 3. calculate semantic value
+    SV=K['probability'].copy()
+    SV.columns=['semanticValue']
+    SV.index=SW['terms'].values.tolist()
+    # 3.1 for each term calculate SV[term]
+    tcounter=0
+    for t in SW['terms'].values.tolist():
+        tcounter+=1
+        icu.progressBar(tcounter , len(SW['terms'].values.tolist()))
+        ps = gu.getAllParents(t , ont)
+        SV.loc[t]=(SW[SW['terms'].isin(list(set(ps)))]['probability'].sum())
+    #endfor
+    return SV , SW
+#
+#
+#
+def calculateSemanticWeightsHybridSimilarity(prob , ont):
+    if os.path.exists('/home/d4gl0s/diploma/Experiment/Datasets/semanticWeightsHybridSimilarity.csv'):
+        semanticWeightsHybridSimilarity = pd.read_csv('/home/d4gl0s/diploma/Experiment/Datasets/semanticWeightsHybridSimilarity.csv')
+        semanticWeightsHybridSimilarity.drop(columns=['Unnamed: 0'],inplace=True)
+        semanticWeightsHybridSimilarity.index=lterms
+    else:
+        semanticWeightsHybridSimilarity = pd.DataFrame(0, index=prob['terms'].values.tolist(), columns=prob['terms'].values.tolist(), dtype=np.float64)
+        # 1. calculate semantic weights and semantic values for each term
+        print(f'Calculating Weights')
+        SV , SW = calculateSemanticWeights(prob , ont)
+        tcounter=0
+        print(f'Calculating Similarity')
+        for i in semanticWeightsHybridSimilarity.index:
+            for j in semanticWeightsHybridSimilarity.columns:
+                tcounter+=1
+                icu.progressBar(tcounter , len(SW['terms'].values.tolist()))
+                if i==j:
+                    semanticWeightsHybridSimilarity.loc[i,j]=1
+                    continue
+                #endif
+                # 2. get all parents for each term
+                anc1=getAllParents(i,ont)
+                anc2=getAllParents(j,ont)
+                commonParents=set(anc1)&set(anc2)
+                if len(commonParents)==0:# 2.1 if no common parents , then 0 similarity
+                    semanticWeightsHybridSimilarity.loc[i,j]=0
+                else:# 2.2 calculate semanticWeightsHybridSimilarity
+                    ancSum = SW[SW['terms'].isin(list(commonParents))]['probability'].sum()
+                    semanticWeightsHybridSimilarity.loc[i,j]=ancSum/(SV.loc[i]+SV.loc[j])
+                #endif
+            #endfor
+        #endfor

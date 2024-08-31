@@ -22,6 +22,7 @@ def hybridMethodsMenu(geneData, ont):
     ** Information Content Based Methods **
     1. Integrated Similarity Measure
     2. Hybrid Relative Specificity Similarity
+    3. Semantic Weights Hybrid Similarity
     '''
     # 0. get information content
     prob = icu.calculateInformationContent(geneData , ont)
@@ -46,6 +47,8 @@ def hybridMethodsMenu(geneData, ont):
         hsu.integratedSM(tFrequency , prob , ont)
     elif choice==2:
         hsu.calculateHRSS(prob , ont)
+    elif choice==3:
+        hsu.calculateSemanticWeightsHybridSimilarity(prob , ont)
 #
 #
 #
