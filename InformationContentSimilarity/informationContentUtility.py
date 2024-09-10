@@ -3,6 +3,7 @@ import sys
 import os
 import time
 import random
+import time
 # data analysis modules
 import numpy as np
 import pandas as pd
@@ -16,7 +17,7 @@ from EdgeBasedSimilarity import edgeBasedMethods as ebm
 #
 #
 #
-def progressBar(count_value, total, suffix=''):
+def progressBar(count_value, total, tm , suffix=''):
     emoji = [
       '👿','🤡','👽','💩','😤','🤬','🤯','🥶','🥵',
       '🤒','🤕','🤢','🤮','🤧','🥴','🤥','🤫','🤭',
@@ -30,7 +31,7 @@ def progressBar(count_value, total, suffix=''):
     percentage = round(100.0 * count_value/float(total),1)
     bstring = ''.join(random.choices(emoji, k=filled_up_Length))
     bar = bstring + '-' * (bar_length - filled_up_Length)
-    sys.stdout.write('[%s] %s%s Nodes left : %s\n' %(bar, percentage, '%', total-count_value))
+    sys.stdout.write('[%s] %s%s Nodes left : %s Time elapsed : %s sec\n' %(bar, percentage, '%', total-count_value , int(time.time()-tm)))
     #sys.stdout.flush()
 #
 #
@@ -386,6 +387,7 @@ def simResnik(t1, t2 , prob , ont):
 def calculateSimResnik(prob , ont):
     if os.path.exists(os.getcwd()+'/Datasets/resnikSimilarity.csv'):
         resnikSimilarity = pd.read_csv(os.getcwd()+'/Datasets/resnikSimilarity.csv')
+        resnikSimilarity.drop(columns=['Unnamed: 0'],inplace=True)
         resnikSimilarity.index=resnikSimilarity.columns
         return resnikSimilarity
     #endif
@@ -413,6 +415,12 @@ def similarityJiang(simRes , t1 , t2 , prob):
 #
 #
 def calculateSimJiang(prob , ont):
+    if os.path.exists(os.getcwd()+'/Datasets/jiangSimilarity.csv'):
+        jiangSimilarity = pd.read_csv(os.getcwd()+'/Datasets/jiangSimilarity.csv')
+        jiangSimilarity.drop(columns=['Unnamed: 0'],inplace=True)
+        jiangSimilarity.index=jiangSimilarity.columns
+        return jiangSimilarity
+    #endif
     # 1. calculate resnik similarity
     simRes = None
     if os.path.exists(os.getcwd()+'/Datasets/resnikSimilarity.csv'):
@@ -448,6 +456,12 @@ def similarityLin(simRes , t1 , t2 , prob):
 #
 #
 def calculateSimLin(prob , ont):
+    if os.path.exists(os.getcwd()+'/Datasets/linSimilarity.csv'):
+        linSimilarity = pd.read_csv(os.getcwd()+'/Datasets/linSimilarity.csv')
+        linSimilarity.drop(columns=['Unnamed: 0'],inplace=True)
+        linSimilarity.index=linSimilarity.columns
+        return linSimilarity
+    #endif
     # 1. calculate resnik similarity
     simRes = None
     if os.path.exists(os.getcwd()+'/Datasets/resnikSimilarity.csv'):
@@ -500,6 +514,12 @@ def similarityRelevance(t1 , t2 , prob , ont):
 #
 #
 def calculateSimRel(prob , ont):
+    if os.path.exists(os.getcwd()+'/Datasets/relSimilarity.csv'):
+        relSimilarity = pd.read_csv(os.getcwd()+'/Datasets/relSimilarity.csv')
+        relSimilarity.drop(columns=['Unnamed: 0'],inplace=True)
+        relSimilarity.index=relSimilarity.columns
+        return relSimilarity
+    #endif
     relSimilarity = pd.DataFrame(0, index=prob['terms'].values.tolist(), columns=prob['terms'].values.tolist(), dtype=np.float64)
     counter=0
     for t1 in relSimilarity.index :
@@ -544,6 +564,12 @@ def similarityIC(t1 , t2 , prob , ont):# its MICA not LCA
 #
 #
 def calculateSimInfoCoeff(prob , ont):
+    if os.path.exists(os.getcwd()+'/Datasets/simIC.csv'):
+        simIC = pd.read_csv(os.getcwd()+'/Datasets/simIC.csv')
+        simIC.drop(columns=['Unnamed: 0'],inplace=True)
+        simIC.index=simIC.columns
+        return simIC
+    #endif
     simIC = pd.DataFrame(0, index=prob['terms'].values.tolist(), columns=prob['terms'].values.tolist(), dtype=np.float64)
     counter=0
     for t1 in simIC.index :

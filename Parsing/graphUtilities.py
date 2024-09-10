@@ -17,6 +17,7 @@ import dask
 from EdgeBasedSimilarity import edgeBasedMethods as ebm
 from InformationContentSimilarity import informationContentUtility as icu
 from HybridSimilarity import hybridSimilarityUtils as hsu
+#from MachineLearningMethods.anc2vec import train as builder
 #
 #
 #
@@ -173,11 +174,17 @@ def allAncestorsAllTerms(terms , ont):
 #
 #
 def main():
+    output_file_path = 'interactions.csv'
+    retrieve_and_store_interactions(output_file_path)
+
     if len(sys.argv) != 2:
         print("Usage: python script.py <obo_file_path> <ga_file_path>")
         sys.exit(1)
+    '''
     # path for .obo
     obo_path = sys.argv[1]
+    embeds = builder.fit(obo_path, embedding_sz=200, batch_sz=64, num_epochs=100)
+    print(embeds['GO:0005737'])
     # read json file
     json_file = './Datasets/genes.json'
     geneData = read_json_file(json_file)
@@ -211,7 +218,7 @@ def main():
         t2 = random.choice(terms)
         hsu.hybridRSS(t1, t2 , ont , ic , G)
     #endfor
-
+    '''
 
 if __name__ == "__main__":
     main()
