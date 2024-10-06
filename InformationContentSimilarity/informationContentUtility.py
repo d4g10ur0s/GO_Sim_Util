@@ -4,6 +4,7 @@ import os
 import time
 import random
 import time
+import json
 # data analysis modules
 import numpy as np
 import pandas as pd
@@ -26,13 +27,14 @@ def progressBar(count_value, total, tm , suffix=''):
       ]
     #emoji = ['\u1F615','\u1FAE4','\u1F61F','\u1F641','\u2639','\u1F62E','\u1F62F','\u1F632','\u1F633','\u1F97A','\u1F979','\u1F626','\u1F627','\u1F628','\u1F630','\u1F625','\u1F622','\u1F62D','\u1F631','\u1F616']
     #emoji = [e.decode('utf-8') for e in encoded_emojis]
-    bar_length = 80
+    bar_length = 75
     filled_up_Length = int(round(bar_length* count_value / float(total)))
     percentage = round(100.0 * count_value/float(total),1)
     bstring = ''.join(random.choices(emoji, k=filled_up_Length))
     bar = bstring + '-' * (bar_length - filled_up_Length)
+    sys.stdout.flush()
     sys.stdout.write('[%s] %s%s Nodes left : %s Time elapsed : %s sec\n' %(bar, percentage, '%', total-count_value , int(time.time()-tm)))
-    #sys.stdout.flush()
+    sys.stdout.flush()
 #
 #
 #
@@ -184,14 +186,15 @@ def calcIC(annoTerms , ont):
 #
 #
 def termFrequency(geneData , ancestors , ont ):
+    start_time=time.time()
     tFrequency = {}
     # 1. Get term frequency of leaf terms from annotations
     for g in geneData :
         for t in geneData[g] :
-            if t[0] in tFrequency.keys():
-                tFrequency[t[0]]+=1
+            if t in tFrequency.keys():
+                tFrequency[t.strip()]+=1
             else:
-                tFrequency[t[0]]=1
+                tFrequency[t.strip()]=1
             #endif
         #endfor
     #endfor
@@ -199,7 +202,7 @@ def termFrequency(geneData , ancestors , ont ):
     counter=0
     for t in list(ancestors.keys()):# 2.1 for each term
         counter+=1
-        progressBar(counter, len(ancestors.keys()))
+        progressBar(counter, len(ancestors.keys()), start_time)
         tanc = ancestors[t]
         for dist in tanc:# 2.3 for each ancestor list
             for a in tanc[dist]:# 2.4 for each ancestor in ancestor list
@@ -315,13 +318,20 @@ def diShin(t1 , t2 , prob , ont, G=None):
 #
 #
 def calculateDiShin(prob , ont):
+    start_time=time.time()
+    if os.path.exists(os.getcwd()+'/Datasets/dishinSimilarity.csv'):
+        dishinSimilarity = pd.read_csv(os.getcwd()+'/Datasets/dishinSimilarity.csv')
+        dishinSimilarity.drop(columns=['Unnamed: 0'],inplace=True)
+        dishinSimilarity.index=dishinSimilarity.columns
+        return dishinSimilarity
+    #endif
     G=ont.get_graph()
     dishinSimilarity = pd.DataFrame(0, index=prob['terms'].values.tolist(), columns=prob['terms'].values.tolist(), dtype=np.float64)
     counter=0
     for t1 in dishinSimilarity.index :
         for t2 in dishinSimilarity.columns:
             counter+=1
-            progressBar(counter , len(dishinSimilarity.index)**2)
+            progressBar(counter , len(dishinSimilarity.index)**2, start_time)
             dishinSimilarity.loc[t1, t2], ancPath = diShin(t1 , t2 , prob , ont, G)
         #endfor
     #endfor
@@ -346,12 +356,13 @@ def simGic(t1 , t2 , prob , ont):
 #
 #
 def calculateSimGIC(prob , ont):
+    start_time=time.time()
     graphICSimilarity = pd.DataFrame(0, index=prob['terms'].values.tolist(), columns=prob['terms'].values.tolist(), dtype=np.float64)
     counter=0
     for t1 in graphICSimilarity.index :
         for t2 in graphICSimilarity.columns:
             counter+=1
-            progressBar(counter , len(graphICSimilarity.index)**2)
+            progressBar(counter , len(graphICSimilarity.index)**2 , start_time)
             graphICSimilarity.loc[t1, t2]=simGic(t1 , t2 , prob , ont)
         #endfor
     #endfor
@@ -375,7 +386,7 @@ def simResnik(t1, t2 , prob , ont):
         mica = 0
         for p in lcas :
             ic = -np.log(prob[prob['terms']==p]['probability']).values[0]
-            if ic > mica:
+            if ic >= mica:
                 mica = ic
             #endif
         #endfor
@@ -385,8 +396,9 @@ def simResnik(t1, t2 , prob , ont):
 #
 #
 def calculateSimResnik(prob , ont):
-    if os.path.exists(os.getcwd()+'/Datasets/resnikSimilarity.csv'):
-        resnikSimilarity = pd.read_csv(os.getcwd()+'/Datasets/resnikSimilarity.csv')
+    start_time = time.time()
+    if os.path.exists(os.getcwd()+'/Datasets/resnikSimilarity_1.csv'):
+        resnikSimilarity = pd.read_csv(os.getcwd()+'/Datasets/resnikSimilarity_1.csv')
         resnikSimilarity.drop(columns=['Unnamed: 0'],inplace=True)
         resnikSimilarity.index=resnikSimilarity.columns
         return resnikSimilarity
@@ -396,11 +408,11 @@ def calculateSimResnik(prob , ont):
     for t1 in resnikSimilarity.index :
         for t2 in resnikSimilarity.columns:
             counter+=1
-            progressBar(counter , len(resnikSimilarity.index)**2)
+            progressBar(counter , len(resnikSimilarity.index)**2,start_time)
             resnikSimilarity.loc[t1, t2]=simResnik(t1 , t2 , prob , ont)
         #endfor
     #endfor
-    resnikSimilarity.to_csv(os.getcwd()+'/Datasets/resnikSimilarity.csv')
+    resnikSimilarity.to_csv(os.getcwd()+'/Datasets/resnikSimilarity_1.csv')
     print(resnikSimilarity)
     return resnikSimilarity
 #
@@ -587,8 +599,9 @@ def calculateSimInfoCoeff(prob , ont):
 #
 #
 def calculateInformationContent(geneData , ont):
+    start_time=time.time()
     # 1. extract all terms from gene data
-    terms = pu.extractTermsFromGenes(geneData)
+    terms = pu.extractTerms(geneData)
     # 2. find all ancestors for each term
     ancestors = None
     if os.path.exists(os.getcwd()+'/Datasets/allAncestors.json'):
@@ -616,6 +629,7 @@ def calculateInformationContent(geneData , ont):
         # 4.1 save term frequency
         tFrequency.to_csv(os.getcwd()+'/Datasets/termFrequency.csv')
     # 5. calculate propabilities based on sub ontology
+    print(tFrequency)
     df_prob = None
     if os.path.exists(os.getcwd()+'/Datasets/termProbability.csv'):
         df_prob = pd.read_csv(os.getcwd()+'/Datasets/termProbability.csv')
@@ -624,7 +638,7 @@ def calculateInformationContent(geneData , ont):
         counter=0
         for t in tFrequency.index:
             counter+=1
-            progressBar(counter, len(tFrequency.index))
+            progressBar(counter, len(tFrequency.index), start_time)
             root , namespace = gu.findRoot(t,ont)
             tProb[t]=tFrequency.loc[t]/tFrequency.loc[root]
         #endfor

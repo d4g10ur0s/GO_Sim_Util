@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import time
 # data analysis modules
 import numpy as np
 import pandas as pd
@@ -61,7 +62,10 @@ def getTValues(t , root , ont , tValues , G=None):
         omega=tn/pn
         val+=omega*tValues[p]
     #endfor
-    tValues[t]=val/len(parents)# 3.5 tvalue is the mean of summmation
+    if len(parents)==0:
+        tValues[t]=1
+    else:
+        tValues[t]=val/len(parents)# 3.5 tvalue is the mean of summmation
 #
 #
 #
@@ -108,17 +112,14 @@ def lowest_common_ancestor(t1, t2):
     1. Given two terms t1 , t2 find their LCA .
     2. Find maximum distance of LCA from root .
     '''
-    if not(t1[1] == t2[1]):
-        return [0,None]
-    dist_1 = 0
-    dist_2 = 0
-    for i in t1[0]:
-        for j in t2[0]:
-            intersection=list(set(t1[0][i])&set(t2[0][j]))
+    for i in t1:
+        for j in t2:
+            intersection=list(set(t1[i])&set(t2[j]))
             if len(intersection)>0:
                 return [i+j , intersection]
         #endfor
     #endfor
+    return [0,None]
 #
 #
 #
@@ -263,8 +264,15 @@ def findLCAs(t1, t2 , ont):
 #
 #
 def shortestSemanticDifferentiationDistance(geneData , ont):
+    if os.path.exists(os.getcwd()+'/Datasets/ssddSimilarity.csv'):
+        sim = pd.read_csv(os.getcwd()+'/Datasets/ssddSimilarity.csv')
+        sim.drop(columns=['Unnamed: 0'] , inplace=True)
+        sim.index=sim.columns
+        return sim
+    #endif
+    start_time=time.time()
     # 1. extract all terms from gene data
-    terms = pu.extractTermsFromGenes(geneData)
+    terms = pu.extractTerms(geneData)
     # 0. preprocessing steps
     G = ont.get_graph()
     ancestors = None
@@ -284,7 +292,7 @@ def shortestSemanticDifferentiationDistance(geneData , ont):
     else:
         for t in terms :
             counter+=1
-            icu.progressBar(counter, len(terms))
+            icu.progressBar(counter, len(terms), start_time)
             root ,namespace = gu.findRoot(t, ont)# 2.1 find root term
             getTValues(t, root , ont , tValues , G)# 2.2 calculate tvalues
         #endfor
@@ -297,7 +305,7 @@ def shortestSemanticDifferentiationDistance(geneData , ont):
     for t1 in terms :
         for t2 in terms :
             counter+=1
-            icu.progressBar(counter, len(terms)**2)
+            icu.progressBar(counter, len(terms)**2,start_time)
             if t1==t2 :# 3.1 trivial similarity
                 ssddSim.loc[t1 , t2]=0
                 continue
@@ -329,16 +337,23 @@ def shortestSemanticDifferentiationDistance(geneData , ont):
 #
 #
 def semanticValueSimilarity(geneData , ont):
+    if os.path.exists(os.getcwd()+'/Datasets/sValueSimilarity.csv'):
+        sim = pd.read_csv(os.getcwd()+'/Datasets/sValueSimilarity.csv')
+        sim.drop(columns=['Unnamed: 0'] , inplace=True)
+        sim.index=sim.columns
+        return sim
+    #endif
+    start_time=time.time()
     G = ont.get_graph()
     # 1. extract all terms from gene data
-    terms = pu.extractTermsFromGenes(geneData)
+    terms = pu.extractTerms(geneData)
     # 2. for each subgraph calculate term's s-value
     sval = {}
     counter=0
     print('Getting s-values for every term')
     for t in terms:
         counter+=1
-        icu.progressBar(counter, len(terms))
+        icu.progressBar(counter, len(terms),start_time)
         sval[t] = getSvalue(t , ont)
     #endfor
     with open(os.getcwd()+'/Datasets/svalues.json', "w") as f:
@@ -346,8 +361,11 @@ def semanticValueSimilarity(geneData , ont):
     # 4. for each term pair calculate their semantic similarity
     sValueSimilarity = pd.DataFrame(0, index=terms, columns=terms, dtype=np.float64)
     print('Calculate term similarity between all term pairs')
+    counter=0
     for t1 in terms :
         for t2 in terms :
+            counter+=1
+            icu.progressBar(counter, len(terms)**2,start_time)
             if t1==t2 :# terms are the same term , trivial calculation of similarity
                 sValueSimilarity.loc[t1 ,t2]=1
             else:
@@ -362,32 +380,40 @@ def semanticValueSimilarity(geneData , ont):
 #
 #
 def simpleWeightedDistance(geneData , ont):
+    if os.path.exists(os.getcwd()+'/Datasets/simSimpleWeights.csv'):
+        sim = pd.read_csv(os.getcwd()+'/Datasets/simSimpleWeights.csv')
+        sim.drop(columns=['Unnamed: 0'] , inplace=True)
+        sim.index=sim.columns
+        return sim
+    #endif
     G = ont.get_graph()
+    start_time=time.time()
     # 1. extract all terms from gene data
-    terms = pu.extractTermsFromGenes(geneData)
+    terms = pu.extractTerms(geneData)
     # 2. for each term get all of its ancestors
     termDict = {}
     counter=0
-    for t in terms :
-        counter+=1
-        icu.progressBar(counter, len(terms))
-        anc = gu.allAncestors(t , ont , G)
-        termDict[t] = anc
-    #endfor
+    if os.path.exists(os.getcwd()+'/Datasets/allAncestors.json'):
+        termDict = gu.read_json_file(os.getcwd()+'/Datasets/allAncestors.json')
+    else:# create annotation file
+        termDict=gu.allAncestorsAllTerms(terms , ont)
+        with open(os.getcwd()+'/Datasets/allAncestors.json', "w") as f:
+            json.dump(termDict, f, indent=4)
+    #endif
     simSimpleWeights = pd.DataFrame(0, index=terms, columns=terms, dtype=np.float64)
     counter=0
     for t1 in terms :
         for t2 in terms:
             counter+=1
-            icu.progressBar(counter, len(terms)**2)
+            icu.progressBar(counter, len(terms)**2,start_time)
             if t1==t2 :# trivial similarity t1,t2 are the same term
                 simSimpleWeights.loc[t1 ,t2]=1
                 continue
             #endif
-            dist , lca = lowest_common_ancestor( (termDict[t1][0],termDict[t1][2]) , (termDict[t2][0],termDict[t2][2]) )
+            dist , lca = lowest_common_ancestor(termDict[t1.strip()], termDict[t2.strip()])
             if not lca==None :
                 try :
-                    dist , anc , namespace = gu.allAncestors(lca[0], ont)
+                    dist = termDict[lca[0]]
                     avgL = averageLengthToLCA(t1,t2,lca[0],ont,G)
                     simSimpleWeights.loc[t1 , t2] = (avgL + sum([.815,] + [.815**(i+1) for i in range(1,len(dist.keys()))]))/avgL
                 except KeyError :
@@ -405,35 +431,42 @@ def simpleWeightedDistance(geneData , ont):
 #
 #
 def simRada(geneData, ont):
+    if os.path.exists(os.getcwd()+'/Datasets/simRada.csv'):
+        sim = pd.read_csv(os.getcwd()+'/Datasets/simRada.csv')
+        sim.drop(columns=['Unnamed: 0'] , inplace=True)
+        sim.index=sim.columns
+        return sim
+    #endif
     G = ont.get_graph()
+    start_time = time.time()
     '''
     1. for every possible combination of nodes find the minimum path between them .
     2. sum all the distances and divide by product of number of elements of each set .
     '''
     # 1. extract all terms from gene data
-    terms = pu.extractTermsFromGenes(geneData)
+    terms = pu.extractTerms(geneData)
     # 2. for each term get all of its ancestors
     termDict = {}
     counter=0
-    for t in terms :
-        counter+=1
-        icu.progressBar(counter, len(terms))
-        anc = gu.allAncestors(t , ont , G)
-        termDict[t] = anc
-    #endfor
+    if os.path.exists(os.getcwd()+'/Datasets/allAncestors.json'):
+        termDict = gu.read_json_file(os.getcwd()+'/Datasets/allAncestors.json')
+    else:# create annotation file
+        termDict=gu.allAncestorsAllTerms(terms , ont)
+        with open(os.getcwd()+'/Datasets/allAncestors.json', "w") as f:
+            json.dump(termDict, f, indent=4)
     # 3. create a dataframe full of 0s
     similarityRada = pd.DataFrame(0, index=terms, columns=terms, dtype=np.float64)
     counter=0
     for t1 in terms :
         for t2 in terms:
             counter+=1
-            icu.progressBar(counter, len(terms)**2)
+            icu.progressBar(counter, len(terms)**2 , start_time)
             if t1==t2 :# trivial similarity t1,t2 are the same term
                 similarityRada.loc[t1 ,t2]=1
                 continue
             #endif
-            dist , lca = lowest_common_ancestor( (termDict[t1][0],termDict[t1][2]) , (termDict[t2][0],termDict[t2][2]) )
-            similarityRada.loc[t1 , t2] = dist
+            dist , lca = lowest_common_ancestor(termDict[t1],termDict[t2])
+            similarityRada.loc[t1 , t2] = float(dist)
         #endfor
     #endfor
     # 4. save similarity

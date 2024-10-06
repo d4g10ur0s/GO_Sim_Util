@@ -3,6 +3,7 @@ import sys
 sys.path.append('/home/d4gl0s/diploma/Experiment')
 import json
 import random
+import time
 # data analysis tools
 import pandas as pd
 import numpy as np
@@ -129,7 +130,7 @@ def integratedSM(frequency, prob , ont):
     if os.path.exists('/home/d4gl0s/diploma/Experiment/Datasets/HSM.csv'):
         HSM = pd.read_csv('/home/d4gl0s/diploma/Experiment/Datasets/HSM.csv')
         HSM.drop(columns=['Unnamed: 0'],inplace=True)
-        HSM.index=lterms
+        HSM.index=HSM.columns
     else:
         HSM = pd.DataFrame(0, index=P.index, columns=P.columns, dtype=np.float64)
         tcounter=0
@@ -185,7 +186,7 @@ def hybridRSS(t1, t2 , ont, prob, G=None):
         # get t2's mil
         mil_2 = prob[prob['terms'].isin(leaves_2)]['probability'].max()
         mil_2=-np.log(mil_2)
-        if np.isnan(mil_2) :# probability is to small , make beta = 1
+        if np.isnan(mil_2) :# probability is 2 small , make beta = 1
             beta=1
         else:
             beta = ((-np.log(prob[prob['terms']==t2]['probability']) - mil_2)/2).values[0]
@@ -193,7 +194,7 @@ def hybridRSS(t1, t2 , ont, prob, G=None):
         # get t1's mil
         mil_1 = prob[prob['terms'].isin(leaves_1)]['probability'].max()
         mil_1=-np.log(mil_1)
-        if np.isnan(mil_1) :# probability is to small , make beta = 1
+        if np.isnan(mil_1) :# probability is 2 small , make beta = 1
             beta=1
         else:
             beta = ((-np.log(prob[prob['terms']==t1]['probability']) - mil_1)/2).values[0]
@@ -233,12 +234,13 @@ def hybridRSS(t1, t2 , ont, prob, G=None):
 #
 #
 def calculateHRSS(prob ,ont):
+    start_time=time.time()
     G=ont.get_graph()# get ontology graph
     # 1. create the matrix if it does not exist
     if os.path.exists('/home/d4gl0s/diploma/Experiment/Datasets/HRSS.csv'):
         HRSS = pd.read_csv('/home/d4gl0s/diploma/Experiment/Datasets/HRSS.csv')
         HRSS.drop(columns=['Unnamed: 0'],inplace=True)
-        HRSS.index=lterms
+        HRSS.index=HRSS.columns
     else:
         HRSS = pd.DataFrame(0, index=prob['terms'].values.tolist(), columns=prob['terms'].values.tolist(), dtype=np.float64)
         # calculate hrss
@@ -246,7 +248,7 @@ def calculateHRSS(prob ,ont):
         for i in HRSS.index:
             for j in HRSS.columns:
                 tcounter+=1
-                icu.progressBar(tcounter , len(HRSS.index)**2)
+                icu.progressBar(tcounter , len(HRSS.index)**2,start_time)
                 if i==j:
                     HRSS.loc[i,j]=1
                 else:
@@ -263,6 +265,7 @@ def calculateHRSS(prob ,ont):
 #
 def calculateSemanticWeights(prob , ont):
     # 1. calculate knowledge for all terms
+    start_time=time.time()
     K=prob.copy()
     K['probability']=-1/np.log(K['probability'])
     # 2. calculate semantic weights for all terms
@@ -276,7 +279,7 @@ def calculateSemanticWeights(prob , ont):
     tcounter=0
     for t in SW['terms'].values.tolist():
         tcounter+=1
-        icu.progressBar(tcounter , len(SW['terms'].values.tolist()))
+        icu.progressBar(tcounter , len(SW['terms'].values.tolist()), start_time)
         ps = gu.getAllParents(t , ont)
         SV.loc[t]=(SW[SW['terms'].isin(list(set(ps)))]['probability'].sum())
     #endfor
@@ -285,10 +288,12 @@ def calculateSemanticWeights(prob , ont):
 #
 #
 def calculateSemanticWeightsHybridSimilarity(prob , ont):
+    start_time=time.time()
     if os.path.exists('/home/d4gl0s/diploma/Experiment/Datasets/semanticWeightsHybridSimilarity.csv'):
         semanticWeightsHybridSimilarity = pd.read_csv('/home/d4gl0s/diploma/Experiment/Datasets/semanticWeightsHybridSimilarity.csv')
         semanticWeightsHybridSimilarity.drop(columns=['Unnamed: 0'],inplace=True)
-        semanticWeightsHybridSimilarity.index=lterms
+        semanticWeightsHybridSimilarity.index=semanticWeightsHybridSimilarity.columns
+        return semanticWeightsHybridSimilarity
     else:
         semanticWeightsHybridSimilarity = pd.DataFrame(0, index=prob['terms'].values.tolist(), columns=prob['terms'].values.tolist(), dtype=np.float64)
         # 1. calculate semantic weights and semantic values for each term
@@ -299,14 +304,14 @@ def calculateSemanticWeightsHybridSimilarity(prob , ont):
         for i in semanticWeightsHybridSimilarity.index:
             for j in semanticWeightsHybridSimilarity.columns:
                 tcounter+=1
-                icu.progressBar(tcounter , len(SW['terms'].values.tolist()))
+                icu.progressBar(tcounter , len(semanticWeightsHybridSimilarity.index)**2,start_time)
                 if i==j:
                     semanticWeightsHybridSimilarity.loc[i,j]=1
                     continue
                 #endif
                 # 2. get all parents for each term
-                anc1=getAllParents(i,ont)
-                anc2=getAllParents(j,ont)
+                anc1=gu.getAllParents(i,ont)
+                anc2=gu.getAllParents(j,ont)
                 commonParents=set(anc1)&set(anc2)
                 if len(commonParents)==0:# 2.1 if no common parents , then 0 similarity
                     semanticWeightsHybridSimilarity.loc[i,j]=0
@@ -316,3 +321,6 @@ def calculateSemanticWeightsHybridSimilarity(prob , ont):
                 #endif
             #endfor
         #endfor
+        print(semanticWeightsHybridSimilarity)
+        return semanticWeightsHybridSimilarity
+    #endif

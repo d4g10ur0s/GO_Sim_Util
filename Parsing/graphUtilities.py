@@ -3,6 +3,7 @@ import os
 sys.path.append('/home/d4gl0s/diploma/Experiment')
 import json
 import random
+import time
 # data analysis tools
 import pandas as pd
 import numpy as np
@@ -29,16 +30,31 @@ def findRoot(t,ont):
         rootNodes[str(ont.node(r)['label'])] = r
         namespaces.append(str(ont.node(r)['label']))
     # 1. get node information
-    node = ont.node(t)
+    node = ont.node(t.strip())
     root = None
     namespace = None
     for i in node['meta']['basicPropertyValues']:
         if i['val'] in namespaces :
             namespace=i['val']
             root = rootNodes[i['val']]
+            break
         #endif
     #endfor
     return [root,namespace]
+#
+#
+#
+def findNamespaces(terms , ont):
+    counter = 0
+    start_time=time.time()
+    nm = {}
+    for t in terms :
+        counter+=1
+        icu.progressBar(counter , len(terms) , start_time)
+        a , b = findRoot(t , ont)
+        nm[t]=b
+    #endfor
+    return nm
 #
 #
 #
@@ -141,6 +157,7 @@ def allAncestors(t , ont):
 #
 #
 def allAncestorsAllTerms(terms , ont):
+    start_time=time.time()
     '''
     Input : terms , ontology
     - - - - - - - -
@@ -165,7 +182,7 @@ def allAncestorsAllTerms(terms , ont):
     counter=0
     for t in terms :
         counter+=1
-        icu.progressBar(counter, len(terms))
+        icu.progressBar(counter, len(terms), start_time)
         pdist = allAncestors(t , ont)
         anc[t]=pdist
     #endfor

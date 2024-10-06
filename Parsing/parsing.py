@@ -6,8 +6,11 @@ import datetime as dt
 import time
 # data analysis tools
 import pandas as pd
+import numpy as np
 # graph analysis tools
 import networkx as nx
+from node2vec import Node2Vec
+import gensim
 # ontology analysis tools
 import ontobio as ob
 # parallel programming
@@ -17,7 +20,118 @@ import dask
 from EdgeBasedSimilarity import edgeBasedMethods as ebm
 from InformationContentSimilarity import informationContentUtility as icu
 from HybridSimilarity import hybridSimilarityUtils as hsu
-
+from Parsing import graphUtilities as gu
+#
+#
+#
+def my_cosine_similarity(arr1,arr2):
+    dot = sum(a*b for a,b in zip(arr1,arr2) )
+    norm_arr1 = sum(a*a for a in arr1) ** 0.5
+    norm_arr2 = sum(b*b for b in arr2) ** 0.5
+    csimilarity = dot/(norm_arr1*norm_arr2)
+    return csimilarity
+#
+#
+#
+def vectorProteinVector(annotations , pairs , nm):
+    start_time=time.time()
+    model=gensim.models.Word2Vec.load(os.getcwd()+'/go2vec_model')
+    # 1. for each pair , get it's annotations
+    pVectors=[]
+    counter=0
+    for pair_index in range(len(pairs)):
+        counter+=1
+        icu.progressBar(counter , len(pairs), start_time)
+        pair = pairs.iloc[pair_index]
+        # 2. match with annotation
+        annot_1 = [x[0] for x in annotations[pair['p1']]]
+        annot_2 = [x[0] for x in annotations[pair['p2']]]
+        # 3. get maximum simNormalized
+        maxSim=[]
+        # 3.1 find similarities for each pair of terms
+        # check if t1 , t2 in same subontology
+        for i in ['molecular_function' , 'cellular_component' , 'biological_process']:
+            for t1 in annot_1:
+                temp=[]
+                if not(nm[t1]==i):
+                    continue
+                #endif
+                for t2 in annot_2:
+                    if nm[t1]==nm[t2]:
+                        temp.append(my_cosine_similarity(model.wv[t1] , model.wv[t2]))
+                    #endif
+                #endfor
+            #endfor
+            if len(temp)==0:
+                print('It was 0...')
+                maxSim.append(0)
+            else:
+                maxSim.append(sum(temp)/len(temp))
+        #endfor
+        pVectors.append(maxSim)
+    #endfor
+    # Find the maximum length of the arrays
+    max_len = max(len(array) for array in pVectors)
+    # Create a list of lists with 0 padding for missing values
+    padded_arrays = [[value for value in array] + [0] * (max_len - len(array)) for array in pVectors]
+    # Create a DataFrame from the padded arrays
+    df = pd.DataFrame(padded_arrays)
+    #df.replace(0,df.mean(axis=0),inplace=True)
+    df['svm']=pairs['svm']
+    print(df)
+    return df
+#
+#
+#
+def proteinVectors(annotations , pairs , similarity , nm):
+    start_time=time.time()
+    counter=0
+    max_value = similarity.max().max()
+    # Divide all values by the maximum value
+    simNormalized = similarity.div(max_value, axis='index')
+    # 1. for each pair , get it's annotations
+    pVectors=[]
+    for pair_index in range(len(pairs)):
+        counter+=1
+        icu.progressBar(counter , len(pairs), start_time)
+        pair = pairs.iloc[pair_index]
+        # 2. match with annotation
+        annot_1 = [x[0] for x in annotations[pair['p1']]]
+        annot_2 = [x[0] for x in annotations[pair['p2']]]
+        # 3. get maximum simNormalized
+        maxSim=[]
+        # 3.1 find similarities for each pair of terms
+        # check if t1 , t2 in same subontology
+        for i in ['molecular_function' , 'cellular_component' , 'biological_process']:
+            for t1 in annot_1:
+                temp=[]
+                if not(nm[t1]==i):
+                    continue
+                #endif
+                for t2 in annot_2:
+                    if nm[t1]==nm[t2]:
+                        temp.append(simNormalized.loc[t1 , t2])
+                    #endif
+                #endfor
+            #endfor
+            if len(temp)==0:
+                print('It was 0...')
+                maxSim.append(0)
+            else:
+                maxSim.append(sum(temp)/len(temp))
+        #endfor
+        pVectors.append(maxSim)
+    #endfor
+    # Find the maximum length of the arrays
+    max_len = max(len(array) for array in pVectors)
+    # Create a list of lists with 0 padding for missing values
+    padded_arrays = [[value for value in array] + [0] * (max_len - len(array)) for array in pVectors]
+    # Create a DataFrame from the padded arrays
+    df = pd.DataFrame(padded_arrays)
+    #df.replace(0,df.mean(axis=0),inplace=True)
+    df['svm']=pairs['svm']
+    print(df)
+    return df
 #
 #
 #
@@ -27,6 +141,48 @@ def save_to_json(gene_dict, file_path):
     '''
     with open(file_path, 'w') as f:
         json.dump(gene_dict, f, indent=4)
+#
+#
+#
+def getProteinScore(geneData):
+    dpath = 'protein_aliases.tsv'
+    start_time = time.time()
+    pairScore = pd.DataFrame(0, index=geneData.keys(), columns=geneData.keys(), dtype=np.float64)
+    # 1. read interactions file
+    with open(os.getcwd()+'/Datasets/STRING_interactions.txt','r') as f:
+        lines = f.readlines()
+    #endwith
+    proteins = pd.read_csv(os.getcwd()+'/Datasets/'+dpath, sep='\t')
+    counter=0
+    for l in lines[1:]:
+        counter+=1
+        icu.progressBar(counter,len(lines),start_time)
+        temp=l.split(' ')
+        pNames1 = proteins[proteins['#string_protein_id']==temp[0]]['alias']
+        pNames2 = proteins[proteins['#string_protein_id']==temp[1]]['alias']
+        p1=None
+        for p in pNames1:
+            if p in geneData.keys():
+                p1=p
+                break
+            #endif
+        #endfor
+        p2=None
+        for p in pNames2:
+            if p in geneData.keys():
+                p2=p
+                break
+            #endif
+        #endfor
+        if p1==None or p2==None:
+            continue
+        #endif
+        try :
+            pairScore.loc[p1,p2]=float(int(temp[2])/1000)# divide by 1000
+        except KeyError:
+            print(f'Protein {p1} or {p2} do not exist .')
+    #endfor
+    pairScore.to_csv(os.getcwd()+'/Datasets/protein_interactions_extended.csv')
 #
 #
 #
@@ -44,12 +200,15 @@ def mapU2S(genesUniProt):
         for p in pnames:
             counter+=1
             icu.progressBar(counter , len(pnames) , start_time)
-            temp = genesUniProt[genesUniProt['Entry Name']==p+'_HUMAN']
-            if temp.empty or p in toSave.keys():
+            try :
+                temp = genesUniProt[genesUniProt['Entry Name']==p+'_HUMAN']
+                if temp.empty or p in toSave.keys():
+                    pass
+                else:
+                    go_terms = temp['Gene Ontology IDs'].values[0].split(';')
+                    toSave[p]=[gt.strip() for gt in go_terms]
+            except :
                 pass
-            else:
-                go_terms = temp['Gene Ontology IDs'].values[0].split(';')
-                toSave[p]=go_terms
         #endfor
         print(toSave)
         save_to_json(toSave, os.getcwd()+'/Datasets/termsU2S.json')
@@ -81,12 +240,65 @@ def parseUniProt():
 #
 #
 #
+def mapInteractions(prot):
+    interPath = '/home/d4gl0s/diploma/Experiment/Datasets/STRING_interactions.txt'
+    pInter = pd.read_csv(interPath, sep=' ')
+    interFiltered = pInter[pInter['protein1'].isin(prot)]
+    interFiltered=interFiltered[interFiltered['protein2'].isin(prot)]
+    return interFiltered
+#
+#
+#
+def mapGAF(geneData):
+    if os.path.exists(os.getcwd()+'/Datasets/pair_scoring.csv'):
+        toSave = pd.read_csv(os.getcwd()+'/Datasets/pair_scoring.csv')
+        toSave.drop(columns=['Unnamed: 0'],inplace=True)
+        return toSave
+    #endif
+    start_time=time.time()
+    geneNames = geneData.keys()
+    dpath = 'protein_aliases.tsv'#input('Give dataset name :')
+    start_time = time.time()
+    proteins = pd.read_csv(os.getcwd()+'/Datasets/'+dpath, sep='\t')
+    validProteins = proteins[proteins['alias'].isin(geneNames)].reset_index(drop=True)
+    filteredProt = validProteins['#string_protein_id'].unique()
+    interFiltered=mapInteractions(filteredProt)
+    # construct dataframe having p1 , p2 , score
+    toSave = pd.DataFrame(columns=['p1', 'p2' , 'score'])
+    counter=0
+    for i in range(len(interFiltered)):
+        counter+=1
+        icu.progressBar(counter ,len(interFiltered), start_time)
+        pair = interFiltered.iloc[i]
+        name_1 = validProteins[validProteins['#string_protein_id']==pair['protein1']]['alias'].unique()
+        name_2 = validProteins[validProteins['#string_protein_id']==pair['protein2']]['alias'].unique()
+        temp = (name_1[0] , name_2[0] , float(pair['combined_score'])/1000)
+        toSave.loc[len(toSave.index)] = temp
+    #endfor
+    toSave.to_csv(os.getcwd()+'/Datasets/pair_scoring.csv')
+    return toSave
+
+#
+#
+#
+def extractTerms(genes):
+    terms=[]
+    for g in genes:
+        geneTerms=genes[g]
+        for t in geneTerms:
+            terms.append(t[0])
+        #endfor
+    #endfor
+    return list(set(terms))
+#
+#
+#
 def extractTermsFromGenes(genes):
     terms = []
     for g in genes:
-        gene = genes[g]
-        for tset in gene :
-            terms.append(tset[0])
+        geneTerms = genes[g]
+        for t in geneTerms:
+            terms.append(t.strip())
         #endfor
     #endfor
     return list(set(terms))
