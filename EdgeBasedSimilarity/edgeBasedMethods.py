@@ -107,19 +107,25 @@ def averageLengthToLCA(t1 , t2 , lca , ont, G=None):
 #
 #
 #
-def lowest_common_ancestor(t1, t2):
+def lowest_common_ancestor(t1, t2,nt1 , nt2):
     '''
     1. Given two terms t1 , t2 find their LCA .
-    2. Find maximum distance of LCA from root .
     '''
     for i in t1:
         for j in t2:
-            intersection=list(set(t1[i])&set(t2[j]))
-            if len(intersection)>0:
-                return [i+j , intersection]
+            intersection_1=list(set(t1[i])&set(t2[j]))
+            # check if t1 or t2 is an ancestor
+            intersection_2=list(set(t1[i])&set([nt1,nt2]))
+            intersection_3=list(set(t2[j])&set([nt1,nt2]))
+            if len(intersection_1)>0 :
+                return [i+j , intersection_1]
+            elif len(intersection_2)>0 :
+                return [i+j , intersection_2]
+            elif len(intersection_3)>0:
+                return [i+j , intersection_3]
         #endfor
     #endfor
-    return [0,None]
+    return [np.nan,None]
 #
 #
 #
@@ -185,28 +191,36 @@ def getSvalue(term , ont):
     # 1. calculate all semantic values for the graph
     sval = {}
     weightFactor = .815
-    sval[term]=1# 2.1 for term t S-Value calculation is trivial
-    children = [term]
-    parents = ont.parents(term)
     # 2. calculate S-Values
+    sval[term]=1# 2.1 for term t S-Value calculation is trivial
+    # 2.2 get parents of term
+    # set last term to be the last child
+    parents = ont.parents(term)
+    lchildren = [term]
     while not(len(parents)==0):
-        # 2.1 get parents of parents
-        ochildren = []# children in subgraph
-        oparents = []
+        # 2.3 for each parent get its children
+        newParents=[]
         for p in parents :
-            oparents+=list(ont.parents(p))# 2.2 get parents of p in subgraph
-            tchildren = set(children)&set(ont.children(p))# 2.2 get children of p in subgraph
-            maxSval=0
-            for c in tchildren :# children are already in sval
-                if sval[c]*weightFactor>maxSval*weightFactor:# 2.3 find maximum svalue
-                    maxSval=sval[c]*weightFactor
+            newParents+=list(set(newParents)|set(ont.parents(p)))
+            # 2.3.1 children must be in the subgraph
+            valid_children = list(set(ont.children(p))&set(lchildren))
+            maxSV=0
+            for vc in valid_children:# 2.3.2 calculate max sValue
+                if maxSV<weightFactor*sval[vc]:
+                    maxSV=weightFactor*sval[vc]
                 #endif
             #endfor
-            sval[p]=maxSval# 2.4 set svalue
-            ochildren+=list(tchildren)# update parents' children
+            # 2.3.3 set svalue for parent
+            sval[p]=maxSV
         #endfor
-        parents = list(set(oparents))# 2.5 set new parents
-        children = list(set(ochildren))# 2.5 set new children
+        # 2.4 set parents last children
+        # get the parents of parents
+        del lchildren
+        lchildren=parents
+        del parents
+        parents=list(set(newParents))
+        print(len(parents))
+        print('mlkeia')
     #endwhile
     return sval
 #
@@ -380,6 +394,17 @@ def semanticValueSimilarity(geneData , ont):
 #
 #
 def simpleWeightedDistance(geneData , ont):
+    '''
+    Input : a dictionary of gene names and corresponding go terms
+            an ontology object from ontobio module
+    - - - - -
+    Process : for each term pair get their lowest common ancestor
+              calculate the weighted distance of lca from root
+              if they are not under the same subontology then their normalized distance is 1
+              (they are semantically dissimilar).
+    - - - - -
+    Output : Weighted Distance
+    '''
     if os.path.exists(os.getcwd()+'/Datasets/simSimpleWeights.csv'):
         sim = pd.read_csv(os.getcwd()+'/Datasets/simSimpleWeights.csv')
         sim.drop(columns=['Unnamed: 0'] , inplace=True)
@@ -410,7 +435,7 @@ def simpleWeightedDistance(geneData , ont):
                 simSimpleWeights.loc[t1 ,t2]=1
                 continue
             #endif
-            dist , lca = lowest_common_ancestor(termDict[t1.strip()], termDict[t2.strip()])
+            dist , lca = lowest_common_ancestor(termDict[t1.strip()], termDict[t2.strip()],t1 , t2)
             if not lca==None :
                 try :
                     dist = termDict[lca[0]]
@@ -431,6 +456,16 @@ def simpleWeightedDistance(geneData , ont):
 #
 #
 def simRada(geneData, ont):
+    '''
+    Input : a dictionary of gene names and corresponding go terms
+            an ontology object from ontobio module
+    - - - - -
+    Process : for each term pair get the minimum distance in graph
+              if they are not under the same subontology then their normalized distance is 1
+              (they are semantically dissimilar).
+    - - - - -
+    Output : Rada Distance
+    '''
     if os.path.exists(os.getcwd()+'/Datasets/simRada.csv'):
         sim = pd.read_csv(os.getcwd()+'/Datasets/simRada.csv')
         sim.drop(columns=['Unnamed: 0'] , inplace=True)
@@ -439,22 +474,9 @@ def simRada(geneData, ont):
     #endif
     G = ont.get_graph()
     start_time = time.time()
-    '''
-    1. for every possible combination of nodes find the minimum path between them .
-    2. sum all the distances and divide by product of number of elements of each set .
-    '''
     # 1. extract all terms from gene data
     terms = pu.extractTerms(geneData)
-    # 2. for each term get all of its ancestors
-    termDict = {}
-    counter=0
-    if os.path.exists(os.getcwd()+'/Datasets/allAncestors.json'):
-        termDict = gu.read_json_file(os.getcwd()+'/Datasets/allAncestors.json')
-    else:# create annotation file
-        termDict=gu.allAncestorsAllTerms(terms , ont)
-        with open(os.getcwd()+'/Datasets/allAncestors.json', "w") as f:
-            json.dump(termDict, f, indent=4)
-    # 3. create a dataframe full of 0s
+    # 2. create a dataframe full of 0s
     similarityRada = pd.DataFrame(0, index=terms, columns=terms, dtype=np.float64)
     counter=0
     for t1 in terms :
@@ -465,11 +487,17 @@ def simRada(geneData, ont):
                 similarityRada.loc[t1 ,t2]=1
                 continue
             #endif
-            dist , lca = lowest_common_ancestor(termDict[t1],termDict[t2])
-            similarityRada.loc[t1 , t2] = float(dist)
+            try :
+                spl = nx.shortest_path_length(G , t1, t2)
+                similarityRada.loc[t1 ,t2]=spl
+            except nx.exception.NetworkXNoPath :
+                similarityRada.loc[t1 ,t2]=np.nan
         #endfor
     #endfor
     # 4. save similarity
+    nrm = similarityRada.max().max()
+    similarityRada.fillna(nrm*2,inplace=True)
+    similarityRada=similarityRada/(nrm*2)
     print(similarityRada)
     similarityRada.to_csv(os.getcwd()+'/Datasets/simRada.csv')
     return similarityRada
