@@ -189,12 +189,12 @@ def termFrequency(geneData , ancestors , ont ):
     start_time=time.time()
     tFrequency = {}
     # 1. Get term frequency of leaf terms from annotations
-    for g in geneData :
-        for t in geneData[g] :
-            if t in tFrequency.keys():
-                tFrequency[t.strip()]+=1
+    for g in geneData :# for each gene
+        for t in geneData[g] :# for each term annotated
+            if not(len(tFrequency)==0) and t[0] in tFrequency.keys():# if in dictionary
+                tFrequency[t[0]]+=1
             else:
-                tFrequency[t.strip()]=1
+                tFrequency[t[0]]=1
             #endif
         #endfor
     #endfor
@@ -203,9 +203,9 @@ def termFrequency(geneData , ancestors , ont ):
     for t in list(ancestors.keys()):# 2.1 for each term
         counter+=1
         progressBar(counter, len(ancestors.keys()), start_time)
-        tanc = ancestors[t]
-        for dist in tanc:# 2.3 for each ancestor list
-            for a in tanc[dist]:# 2.4 for each ancestor in ancestor list
+        currentAnc = ancestors[t]
+        for dist in currentAnc:# 2.3 for each ancestor list
+            for a in currentAnc[dist]:# 2.4 for each ancestor in ancestor list
                 achildren=set(ont.children(a))# 2.5 get his children
                 validChildren=set(tFrequency.keys())&achildren# 2.6 find intersection with dataset's terms valid children are already stored in termFrequency
                 tFrequency[a]=sum([tFrequency[kid] for kid in validChildren])# 2.7 calculate frequency using children's frequency
@@ -377,7 +377,7 @@ def simResnik(t1, t2 , prob , ont):
         return 1
     #endif
     # 1. find lcas
-    lcas = ebm.findLCAs(t1, t2, ont)
+    dist , lca = lowest_common_ancestor( gu.allAncestors(t1, ont), gu.allAncestors(t2, ont) ,t1 , t2)
     # 2. calculate similarity using lca
     # 2.1 if no lca , then 0 similarity
     if lcas==None:
@@ -397,8 +397,8 @@ def simResnik(t1, t2 , prob , ont):
 #
 def calculateSimResnik(prob , ont):
     start_time = time.time()
-    if os.path.exists(os.getcwd()+'/Datasets/resnikSimilarity_1.csv'):
-        resnikSimilarity = pd.read_csv(os.getcwd()+'/Datasets/resnikSimilarity_1.csv')
+    if os.path.exists(os.getcwd()+'/Datasets/resnikSimilarity.csv'):
+        resnikSimilarity = pd.read_csv(os.getcwd()+'/Datasets/resnikSimilarity.csv')
         resnikSimilarity.drop(columns=['Unnamed: 0'],inplace=True)
         resnikSimilarity.index=resnikSimilarity.columns
         return resnikSimilarity
@@ -412,7 +412,7 @@ def calculateSimResnik(prob , ont):
             resnikSimilarity.loc[t1, t2]=simResnik(t1 , t2 , prob , ont)
         #endfor
     #endfor
-    resnikSimilarity.to_csv(os.getcwd()+'/Datasets/resnikSimilarity_1.csv')
+    resnikSimilarity.to_csv(os.getcwd()+'/Datasets/resnikSimilarity.csv')
     print(resnikSimilarity)
     return resnikSimilarity
 #
@@ -629,7 +629,6 @@ def calculateInformationContent(geneData , ont):
         # 4.1 save term frequency
         tFrequency.to_csv(os.getcwd()+'/Datasets/termFrequency.csv')
     # 5. calculate propabilities based on sub ontology
-    print(tFrequency)
     df_prob = None
     if os.path.exists(os.getcwd()+'/Datasets/termProbability.csv'):
         df_prob = pd.read_csv(os.getcwd()+'/Datasets/termProbability.csv')
